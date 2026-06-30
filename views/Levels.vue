@@ -1,209 +1,122 @@
 <template>
   <div class="page-wrapper">
-    <div class="custom-header">
-      <div class="header-left">
-        <button class="btn btn-outline custom-back-button" @click="goHome">
-          <img class="btn-icon" :src="backIcon" alt="返回主页" />
-          <span>返回主页</span>
-        </button>
-      </div>
-      <div class="header-center">
-        <div class="header-title"><span>关卡选择</span></div>
-      </div>
-      <div class="header-right">
-        <div class="header-actions">
-          <button class="btn btn-outline refresh-btn" @click="refreshLevels" :disabled="isRefreshing">
-            <img class="btn-icon" :src="refreshIcon" alt="刷新" />
-            <span>{{ isRefreshing ? '刷新中...' : '刷新' }}</span>
+    <div class="container levels">
+      <!-- ===== Progress banner ===== -->
+      <section class="progress-banner">
+        <div class="progress-banner-text">
+          <h2 class="duo-section-title">
+            <img class="section-icon" :src="progressIcon" alt="进度" />
+            解锁进度
+          </h2>
+          <p class="progress-line">
+            已完成限时关卡 <strong>{{ completedTimedLevels }}</strong> / 3
+          </p>
+          <p v-if="!allTimedLevelsCompleted" class="progress-tip">完成所有基础关卡解锁特殊挑战与无尽模式</p>
+          <p v-else class="progress-done">
+            <img class="inline-icon" :src="congratulationIcon" alt="恭喜" />
+            全部解锁，去挑战吧！
+          </p>
+        </div>
+        <!-- progress ring -->
+        <div class="banner-ring">
+          <svg viewBox="0 0 100 100" class="banner-ring-svg">
+            <circle class="br-track" cx="50" cy="50" r="42" />
+            <circle class="br-progress" cx="50" cy="50" r="42"
+              :stroke-dasharray="brCirc" :stroke-dashoffset="brOffset" />
+          </svg>
+          <span class="banner-ring-num">{{ Math.round((completedTimedLevels / 3) * 100) }}%</span>
+        </div>
+      </section>
+
+      <!-- ===== Winding skill path ===== -->
+      <section class="path" :style="{ '--rows': pathNodes.length }">
+        <!-- Smooth serpentine road -->
+        <svg class="road" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <path class="road-base" :d="roadD" vector-effect="non-scaling-stroke" />
+          <path class="road-line" :d="roadD" vector-effect="non-scaling-stroke" />
+        </svg>
+
+        <div
+          v-for="(node, idx) in pathNodes"
+          :key="node.id"
+          class="path-node"
+          :class="{
+            'is-locked': !node.unlocked,
+            'is-current': node.current,
+            'is-done': node.completed,
+            'side-left': nodeSide(idx) === 'left',
+            'side-right': nodeSide(idx) === 'right',
+          }"
+          :style="{ left: nodeX(idx) + '%', top: nodeTop(idx) + '%' }"
+        >
+          <button
+            class="node-bubble"
+            :disabled="!node.unlocked"
+            @click="onNodeClick(node)"
+            :aria-label="node.label"
+          >
+            <img class="node-img" :src="node.image" alt="" />
+            <span v-if="!node.unlocked" class="node-lock">
+              <img :src="lockIcon" alt="锁定" />
+            </span>
+            <img v-else-if="node.completed" class="node-crown" :src="trophyIcon" alt="已通关" />
+            <span v-else-if="node.current" class="node-star">★</span>
           </button>
-        </div>
-        <div class="header-coins">
-          <img class="coin-icon" :src="glodIcon" alt="金币" />
-          <span>{{ totalCoins }}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="main-scroll-area">
-      <div class="container">
-        <div class="progress-card">
-          <div class="progress-title title-with-icon">
-            <img class="title-icon-img" :src="progressIcon" alt="解锁进度" />
-            <span>解锁进度</span>
-          </div>
-          <div class="progress-info">
-            <div>
-              已完成限时关卡:
-              <strong>{{ completedTimedLevels }}</strong>/3
-            </div>
-            <div v-if="!allTimedLevelsCompleted" class="progress-tip">
-              完成所有限时基础关卡可解锁特殊挑战与无尽模式！
-            </div>
-            <div v-else class="progress-complete">
-              <img class="celebrate-icon" :src="congratulationIcon" alt="恭喜" />
-              <span>恭喜！所有特殊挑战与无尽模式已解锁！</span>
+          <div class="node-meta">
+            <div class="node-title">{{ node.label }}</div>
+            <div class="node-sub">{{ node.sub }}</div>
+            <div v-if="node.bestScore > 0" class="node-score">
+              <img class="inline-icon" :src="trophyIcon" alt="" /> 最高 {{ node.bestScore }}
             </div>
           </div>
-        </div>
 
-        <!-- 基础关卡（限时） -->
-        <div class="level-section">
-          <h3 class="section-title">
-            <img class="title-icon-img" :src="basicIcon" alt="基础关卡" />
-            <span>基础关卡（限时）</span>
-          </h3>
-          <div class="levels-grid">
-            <div
-              v-for="level in basicLevels"
-              :key="level.id"
-              :class="['level-card', level.unlocked ? 'unlocked' : 'locked']"
-              @click="selectLevel(level.id)"
+          <!-- Special level shape selector popover -->
+          <div v-if="node.kind === 'special' && node.unlocked" class="node-shapes">
+            <button
+              v-for="s in shapes"
+              :key="s.id"
+              class="shape-chip"
+              @click.stop="startSpecialTimed(node.raw, s.id)"
+              :title="`使用${s.name}开始`"
             >
-              <div v-if="level.completed" class="completed-badge">
-                <img class="completed-img" :src="trophyIcon" alt="已通关" />
-              </div>
-              <div v-if="!level.unlocked" class="lock-overlay">
-                <span>🔒</span>
-              </div>
-
-              <div class="level-media">
-                <img
-                  v-if="level.image"
-                  :src="level.image"
-                  :alt="level.name + ' 配图'"
-                  class="level-illustration"
-                />
-                <div v-else class="level-icon">{{ level.icon }}</div>
-              </div>
-              <div class="level-name">{{ level.name }}</div>
-              <div class="level-desc">{{ level.description }}</div>
-
-              <div v-if="level.bestScore > 0" class="best-score">
-                <img class="inline-icon" :src="trophyIcon" alt="最高分" />
-                <span>最高分: {{ level.bestScore }}</span>
-              </div>
-
-              <button
-                v-if="level.unlocked"
-                class="btn level-btn"
-                @click.stop="selectLevel(level.id)"
-              >
-                {{ level.completed ? '重新挑战' : '开始挑战' }}
-              </button>
-              <button v-else class="btn level-btn btn-disabled" disabled>
-                🔒 未解锁
-              </button>
-            </div>
+              <img :src="s.image" :alt="s.name" />
+              <span>{{ s.name }}</span>
+              <small>{{ node.raw.bestScoresByShape?.[s.id] || 0 }}</small>
+            </button>
           </div>
         </div>
+      </section>
 
-        <!-- 特殊挑战（限时） -->
-        <div class="level-section">
-          <h3 class="section-title">
-            <img class="title-icon-img" :src="specialIcon" alt="特殊挑战" />
-            <span>特殊挑战（限时）</span>
-          </h3>
-          <div class="levels-grid">
-            <div
-              v-for="level in specialTimedLevels"
-              :key="level.id"
-              :class="['level-card', 'special-card', level.unlocked ? 'unlocked' : 'locked']"
-            >
-              <div v-if="!level.unlocked" class="lock-overlay">
-                <span>🔒</span>
-              </div>
-
-              <div class="level-media">
-                <img
-                  v-if="level.image"
-                  :src="level.image"
-                  :alt="level.name + ' 配图'"
-                  class="level-illustration"
-                />
-                <div v-else class="level-icon">{{ level.icon }}</div>
-              </div>
-              <div class="level-name">{{ level.name }}</div>
-              <div class="level-desc">{{ getShapeDescription(level.shape, level.mode) }}</div>
-
-              <!-- 每条轨道的最高分展示 + 启动按钮 -->
-              <div class="shape-select">
-                <div class="shape-grid">
-                  <div
-                    v-for="s in shapes"
-                    :key="s.id"
-                    class="shape-cell"
-                  >
-                    <button
-                      class="shape-btn"
-                      :disabled="!level.unlocked"
-                      @click="startSpecialTimed(level, s.id)"
-                      :title="`使用 ${s.name} 轨道开始`"
-                    >
-                      <img :src="s.image" :alt="s.name" class="shape-icon" />
-                      <span class="shape-name">{{ s.name }}</span>
-                    </button>
-                    <div class="shape-score">
-                      <img class="inline-icon" :src="trophyIcon" alt="最高分" />
-                      <span>
-                        最高分：
-                        {{
-                          (level.bestScoresByShape && level.bestScoresByShape[s.id]) 
-                            ? level.bestScoresByShape[s.id] 
-                            : 0
-                        }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <!-- ===== Endless mode card ===== -->
+      <section class="endless-card" :class="{ 'is-locked': !endlessUnlocked }">
+        <div class="endless-left">
+          <img class="endless-img" :src="infiniteImg" alt="无尽模式" />
+          <div>
+            <div class="endless-title">无尽模式</div>
+            <div class="endless-desc">经典 / 干扰 / 多目标，无限挑战</div>
           </div>
         </div>
+        <button
+          class="btn btn-green endless-btn"
+          :disabled="!endlessUnlocked"
+          @click="goEndlessSetup"
+        >
+          {{ endlessUnlocked ? '进入设置' : '🔒 未解锁' }}
+        </button>
+      </section>
 
-        <!-- 无尽模式 -->
-        <div class="level-section">
-          <h3 class="section-title">
-            <img class="title-icon-img" :src="infiniteImg" alt="无尽模式" />
-            <span>无尽模式</span>
-          </h3>
-          <div class="levels-grid">
-            <div
-              :class="['level-card', 'special-card', endlessUnlocked ? 'unlocked' : 'locked']"
-              @click="endlessUnlocked && goEndlessSetup()"
-            >
-              <div v-if="!endlessUnlocked" class="lock-overlay">
-                <span>🔒</span>
-              </div>
-              <div class="level-media">
-                <img :src="infiniteImg" alt="无尽模式" class="level-illustration" />
-              </div>
-              <div class="level-name">无尽模式</div>
-              <div class="level-desc">经典无尽 / 干扰无尽 / 多目标无尽</div>
-              <button
-                :class="['btn', 'level-btn', endlessUnlocked ? 'btn-green' : 'btn-disabled']"
-                :disabled="!endlessUnlocked"
-                @click.stop="goEndlessSetup"
-              >
-                {{ endlessUnlocked ? '进入无尽设置' : '🔒 完成基础关卡解锁' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 帮助 -->
-        <div class="help-card">
-          <div class="help-title title-with-icon">
-            <img class="title-icon-img" :src="hintIcon" alt="游戏提示" />
-            <span>游戏提示</span>
-          </div>
-          <div class="help-content">
-            <div>• 在限时模式中达到 <strong>500分</strong> 即可解锁下一关卡</div>
-            <div>• 完成所有基础关卡可解锁特殊挑战与无尽模式</div>
-            <div>• 特殊挑战（限时）支持选择轨道并记录分轨道最高分</div>
-            <div>• 点击右上角刷新按钮可更新解锁状态</div>
-          </div>
-        </div>
-      </div>
+      <!-- ===== Help ===== -->
+      <section class="help">
+        <h2 class="duo-section-title">
+          <img class="section-icon" :src="hintIcon" alt="提示" />
+          游戏提示
+        </h2>
+        <ul class="help-list">
+          <li>限时模式达到 <strong>500分</strong> 即可解锁下一关</li>
+          <li>完成所有基础关卡解锁特殊挑战与无尽模式</li>
+          <li>特殊挑战可选择轨道并记录分轨道最高分</li>
+        </ul>
+      </section>
     </div>
   </div>
 </template>
@@ -213,137 +126,136 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
 
-import circleImg from '../assets/circle.png'
-import squareImg from '../assets/square.png'
-import triangleImg from '../assets/triangle.png'
-import interferenceImg from '../assets/interference.png'
-import multipleImg from '../assets/multiple.png'
-import infiniteImg from '../assets/infinite.png'
+import circleImg from '../assets/circle.svg'
+import squareImg from '../assets/square.svg'
+import triangleImg from '../assets/triangle.svg'
+import interferenceImg from '../assets/interference.svg'
+import multipleImg from '../assets/multiple.svg'
+import infiniteImg from '../assets/infinite.svg'
 
-import backIcon from '../assets/back.png'
-import refreshIcon from '../assets/refresh.png'
-import basicIcon from '../assets/basic.png'
-import specialIcon from '../assets/special.png'
-import progressIcon from '../assets/progress.png'
-import trophyIcon from '../assets/trophy.png'
-import hintIcon from '../assets/hint.png'
-import glodIcon from '../assets/glod.png'
-import congratulationIcon from '../assets/congratulation.png'
+import progressIcon from '../assets/progress.svg'
+import trophyIcon from '../assets/trophy.svg'
+import hintIcon from '../assets/hint.svg'
+import congratulationIcon from '../assets/congratulation.svg'
+import lockIcon from '../assets/lock.svg'
 
 const router = useRouter()
 const gameStore = useGameStore()
-
-const totalCoins = ref(0)
 const levels = ref([])
 const isRefreshing = ref(false)
 
 const shapes = [
   { id: 'circle', name: '圆形', image: circleImg },
   { id: 'square', name: '方形', image: squareImg },
-  { id: 'triangle', name: '三角', image: triangleImg }
+  { id: 'triangle', name: '三角', image: triangleImg },
 ]
 
-// 分组
-const basicLevels = computed(() => levels.value.filter(l => l.mode === 'timed' && l.id <= 3))
-const specialTimedLevels = computed(() => levels.value.filter(l => ['interference', 'multi-target'].includes(l.mode) && l.id !== 99))
+const getShapeDescription = (shape, mode) => {
+  if (mode === 'interference') return '干扰中保持专注'
+  if (mode === 'multi-target') return '追踪多个目标'
+  return { circle: '经典圆形轨道', square: '方形轨道', triangle: '三角轨道' }[shape] || '经典轨道'
+}
+
+const basicLevels = computed(() => levels.value.filter((l) => l.mode === 'timed' && l.id <= 3))
+const specialTimedLevels = computed(() =>
+  levels.value.filter((l) => ['interference', 'multi-target'].includes(l.mode) && l.id !== 99),
+)
 const endlessUnlocked = computed(() => {
-  const endless = levels.value.find(l => l.id === 99 || l.mode === 'endless')
+  const endless = levels.value.find((l) => l.id === 99 || l.mode === 'endless')
   return endless?.unlocked
 })
 
 const completedTimedLevels = computed(() => {
-  const TIMED_MODE_SCORE_THRESHOLD = 500
-  return basicLevels.value.filter(l => l.completed && l.bestScore >= TIMED_MODE_SCORE_THRESHOLD).length
+  const TH = 500
+  return basicLevels.value.filter((l) => l.completed && l.bestScore >= TH).length
 })
 const allTimedLevelsCompleted = computed(() => completedTimedLevels.value === 3)
 
-const getShapeIcon = (shape, mode) => {
-  if (mode === 'endless') return '♾️'
-  if (mode === 'interference') return '✨'
-  if (mode === 'multi-target') return '🎯'
-  const icons = { circle: '⭕', square: '⬜', triangle: '🔺' }
-  return icons[shape] || '⭕'
+// Build the winding path nodes: basic → special → endless placeholder
+const pathNodes = computed(() => {
+  const nodes = []
+  const firstLockedNotDone = levels.value.find((l) => !l.completed && l.unlocked && l.mode === 'timed')
+  basicLevels.value.forEach((l) => {
+    nodes.push({
+      id: `b-${l.id}`,
+      kind: 'basic',
+      raw: l,
+      label: l.name,
+      sub: getShapeDescription(l.shape, l.mode),
+      image: { circle: circleImg, square: squareImg, triangle: triangleImg }[l.shape] || circleImg,
+      unlocked: l.unlocked,
+      completed: l.completed,
+      current: l.unlocked && !l.completed && l === firstLockedNotDone,
+      bestScore: l.bestScore || 0,
+    })
+  })
+  specialTimedLevels.value.forEach((l) => {
+    nodes.push({
+      id: `s-${l.id}`,
+      kind: 'special',
+      raw: l,
+      label: l.name,
+      sub: getShapeDescription(l.shape, l.mode),
+      image: l.mode === 'interference' ? interferenceImg : multipleImg,
+      unlocked: l.unlocked,
+      completed: false,
+      current: false,
+      bestScore: l.bestScore || 0,
+    })
+  })
+  return nodes
+})
+
+// Winding serpentine road geometry (percent coords, x in 0-100, y in 0-100)
+const SWAY = 26 // horizontal sway from center
+const nodeX = (idx) => {
+  const pattern = [0, 1, -1, 1, -1, 1, -1] // serpentine: center, right, left, right...
+  return 50 + (pattern[idx % pattern.length] || 0) * SWAY
+}
+const nodeTop = (idx) => {
+  const n = pathNodes.value.length
+  return ((idx + 0.5) / n) * 100
+}
+const nodeSide = (idx) => {
+  const x = nodeX(idx)
+  if (x > 55) return 'right'
+  if (x < 45) return 'left'
+  return 'center'
 }
 
-const getShapeDescription = (shape, mode) => {
-  if (mode === 'interference') return '在干扰中保持专注，考验抗干扰能力'
-  if (mode === 'multi-target') return '同时追踪多个目标，提升注意力分配'
-  const descriptions = {
-    circle: '经典圆形轨道，适合新手',
-    square: '方形轨道，考验转弯技巧',
-    triangle: '三角轨道，挑战急转弯'
+// Smooth cubic-bezier path through all node centers
+const roadD = computed(() => {
+  const nodes = pathNodes.value
+  const n = nodes.length
+  if (n === 0) return ''
+  const pts = nodes.map((_, i) => ({ x: nodeX(i), y: nodeTop(i) }))
+  let d = `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)}`
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1]
+    const cur = pts[i]
+    const midY = (prev.y + cur.y) / 2
+    d += ` C ${prev.x.toFixed(2)} ${midY.toFixed(2)}, ${cur.x.toFixed(2)} ${midY.toFixed(2)}, ${cur.x.toFixed(2)} ${cur.y.toFixed(2)}`
   }
-  return descriptions[shape] || '经典轨道'
-}
+  return d
+})
 
-const getSpecialLevelImage = (level) => {
-  if (level.mode === 'interference') return interferenceImg
-  if (level.mode === 'multi-target') return multipleImg
-  if (level.id === 99 || level.mode === 'endless') return infiniteImg
-  return null
-}
-
-const getLevelImage = (level) => {
-  if (level.mode === 'timed') {
-    if (level.id === 1 && level.shape === 'circle') return circleImg
-    if (level.id === 2 && level.shape === 'square') return squareImg
-    if (level.id === 3 && level.shape === 'triangle') return triangleImg
-  }
-  return null
-}
+const brCirc = 2 * Math.PI * 42
+const brOffset = computed(() => brCirc * (1 - completedTimedLevels.value / 3))
 
 const loadLevelsData = () => {
   const gameData = gameStore.gameData
-
-  // 确保旧存档的最佳分轨道对象存在（双保险）
-  gameData.levels.forEach(l => {
+  gameData.levels.forEach((l) => {
     if (['interference', 'multi-target'].includes(l.mode) && !l.bestScoresByShape) {
       l.bestScoresByShape = { circle: 0, square: 0, triangle: 0 }
     }
   })
-
-  const levelsWithIcons = gameData.levels.map(level => ({
-    ...level,
-    icon: getShapeIcon(level.shape, level.mode),
-    description: getShapeDescription(level.shape, level.mode),
-    image: getLevelImage(level) || getSpecialLevelImage(level)
-  }))
-
-  totalCoins.value = gameData.totalCoins
-  levels.value = levelsWithIcons
+  levels.value = gameData.levels.map((l) => ({ ...l }))
 }
 
-const refreshLevels = async () => {
-  isRefreshing.value = true
-  await new Promise(resolve => setTimeout(resolve, 500))
-  gameStore.loadGameData()
-  loadLevelsData()
-  isRefreshing.value = false
-
-  const notification = document.createElement('div')
-  notification.textContent = '✅ 关卡状态已更新！'
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: #10b981;
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 1000;
-    font-weight: 600;
-  `
-  document.body.appendChild(notification)
-  setTimeout(() => {
-    document.body.removeChild(notification)
-  }, 2000)
-}
-
-const selectLevel = (levelId) => {
-  const level = levels.value.find(l => l.id === levelId)
-  if (!level || !level.unlocked) return
-  router.push(`/game?levelId=${levelId}&gameMode=${level.mode}`)
+const onNodeClick = (node) => {
+  if (!node.unlocked) return
+  if (node.kind === 'special') return // shape chips handle it
+  router.push(`/game?levelId=${node.raw.id}&gameMode=${node.raw.mode}`)
 }
 
 const startSpecialTimed = (level, shapeId) => {
@@ -351,8 +263,7 @@ const startSpecialTimed = (level, shapeId) => {
   router.push(`/game?levelId=${level.id}&gameMode=${level.mode}&shape=${shapeId}`)
 }
 
-const goEndlessSetup = () => { router.push('/endless-setup') }
-const goHome = () => { router.push('/') }
+const goEndlessSetup = () => router.push('/endless-setup')
 
 onMounted(() => {
   gameStore.loadGameData()
@@ -361,176 +272,152 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.header-actions { display: flex; align-items: center; gap: 12px; }
-.btn-icon { width: 18px; height: 18px; object-fit: contain; margin-right: 6px; vertical-align: -3px; }
-.title-with-icon { display: inline-flex; align-items: center; gap: 8px; }
-.title-icon-img { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; }
-.coin-icon { width: 18px; height: 18px; object-fit: contain; margin-right: 6px; vertical-align: -3px; }
+.levels { display: flex; flex-direction: column; gap: 22px; }
 
-.refresh-btn {
-  padding: 8px 12px;
-  font-size: 14px;
-  min-width: 110px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-.refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-/* 进度卡片 */
-.progress-card {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  color: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
-}
-.progress-title { font-size: 18px; font-weight: bold; margin-bottom: 12px; }
-.progress-info div { margin: 4px 0; }
-.progress-tip { color: #e0e7ff; font-size: 14px; }
-.progress-complete { color: #fbbf24; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
-.celebrate-icon { width: 18px; height: 18px; object-fit: contain; }
-
-/* 区块与网格 */
-.level-section { margin-bottom: 32px; }
-.section-title {
-  font-size: 20px; font-weight: bold; color: #374151; margin-bottom: 16px;
-  padding-left: 8px; border-left: 4px solid #8b5cf6; display: inline-flex; align-items: center; gap: 8px;
-}
-.levels-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px; margin: 16px 0;
-}
-
-.level-card {
-  position: relative;
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-  display: flex; flex-direction: column; justify-content: flex-start;
-  min-height: 260px;
-}
-.level-card.unlocked { border-color: #8b5cf6; }
-.level-card.unlocked:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.2); border-color: #7c3aed; }
-.level-card.special-card.unlocked { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-color: #f59e0b; }
-.level-card.special-card.unlocked:hover { box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3); }
-.level-card.locked { opacity: 0.6; }
-
-.completed-badge {
-  position: absolute; top: -10px; right: -10px; background: #f59e0b; color: white;
-  border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
-.completed-img { width: 24px; height: 24px; object-fit: contain; }
-
-.lock-overlay { position: absolute; inset: 0; background: rgba(229, 231, 235, 0.9); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
-
-.level-media { display: flex; justify-content: center; align-items: center; margin-bottom: 12px; min-height: 96px; }
-.level-illustration { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.08)); }
-.level-icon { font-size: 48px; margin-bottom: 12px; }
-
-.level-name { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: #374151; }
-.level-desc { font-size: 14px; color: #6b7280; margin-bottom: 12px; }
-
-.best-score {
-  color: #f59e0b; font-size: 14px; font-weight: 600; margin-bottom: 12px;
-  display: flex; align-items: center; justify-content: center; gap: 6px; text-align: center; width: 100%;
-}
-
+.section-icon { width: 24px; height: 24px; object-fit: contain; }
 .inline-icon { width: 16px; height: 16px; object-fit: contain; vertical-align: -2px; }
 
-/* 形状选择与分轨道成绩 */
-.shape-select {
-  margin-top: auto;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 10px;
-  padding: 12px;
-  border: 1px dashed #f59e0b;
+/* ===== Progress banner ===== */
+.progress-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: var(--duo-green); color: #fff;
+  border-radius: 22px; border-bottom: 6px solid var(--duo-green-shadow);
+  padding: 22px 24px;
 }
-.shape-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+.progress-banner .duo-section-title { color: #fff; }
+.progress-line { font-size: 16px; font-weight: 700; margin-top: 8px; }
+.progress-line strong { font-size: 20px; }
+.progress-tip { font-size: 13px; color: #eafbe0; margin-top: 4px; font-weight: 600; }
+.progress-done { font-size: 14px; color: #ffe066; font-weight: 800; margin-top: 4px; display: inline-flex; align-items: center; gap: 6px; }
+
+.banner-ring { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
+.banner-ring-svg { width: 84px; height: 84px; transform: rotate(-90deg); }
+.br-track { fill: none; stroke: rgba(255,255,255,0.3); stroke-width: 9; }
+.br-progress { fill: none; stroke: #fff; stroke-width: 9; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+.banner-ring-num {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: 'Fredoka','Nunito',sans-serif; font-size: 20px; font-weight: 700;
 }
-.shape-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.shape-btn {
+
+/* ===== Winding skill path ===== */
+.path {
+  position: relative;
   width: 100%;
-  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px 10px; border-radius: 10px;
-  border: 2px solid #f59e0b; background: #fff7ed; color: #92400e; font-weight: 700; font-size: 12px; cursor: pointer;
-  transition: all 0.2s;
-}
-.shape-btn:hover { background: #ffedd5; transform: translateY(-1px); }
-.shape-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.shape-icon { width: 22px; height: 22px; object-fit: contain; }
-.shape-name { font-size: 12px; }
-
-.shape-score {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  font-size: 12px; color: #7c2d12; font-weight: 600;
-  background: #fff; border: 1px solid #fde68a; border-radius: 999px; padding: 4px 8px;
+  max-width: 420px;
+  margin: 8px auto 0;
+  /* height driven by row count; each row ~150px */
+  height: calc(var(--rows, 5) * 150px);
+  min-height: 420px;
 }
 
-/* 帮助卡片 */
-.help-card { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 20px; margin-top: 24px; }
-.help-title { font-size: 16px; font-weight: bold; color: #0369a1; margin-bottom: 12px; }
-.help-content { color: #0369a1; font-size: 14px; line-height: 1.6; }
-.help-content strong { color: #dc2626; font-weight: 600; }
-
-/* 头部布局与标题装饰 */
-.custom-back-button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; min-width: max-content; }
-.custom-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; position: relative; }
-.header-left, .header-center, .header-right { flex: 1; display: flex; align-items: center; }
-.header-left { justify-content: flex-start; }
-.header-center { justify-content: center; }
-.header-right { justify-content: flex-end; }
-.header-title {
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
-  "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
-  font-weight: 800; font-size: clamp(20px, 5vw, 30px); line-height: 1.2; letter-spacing: 0.06em; color: #111827;
-  white-space: nowrap; position: relative; text-align: center;
+/* Smooth serpentine road drawn as SVG, stretches to fill */
+.road {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
 }
-.header-title::after {
-  content: ""; display: block; width: 44px; height: 3px; border-radius: 999px; margin: 6px auto 0;
-  background: linear-gradient(90deg, #8b5cf6 0%, #f59e0b 100%); opacity: 0.85;
+.road-base {
+  fill: none; stroke: #e5e5e5; stroke-width: 22; stroke-linecap: round;
+}
+.road-line {
+  fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round;
+  stroke-dasharray: 2 10;
 }
 
-
-.header-coins {
-  display: flex;
-  align-items: center;
-  font-size: 24px;
-  font-weight: 600;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+.path-node {
+  position: absolute; z-index: 1;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center;
+  width: 150px;
 }
 
-.coin-icon {
-  width: 26px;
-  height: 26px;
-  margin-right: 8px;
-  transition: transform 0.3s ease;
+.node-bubble {
+  position: relative; flex-shrink: 0;
+  width: 82px; height: 82px; border-radius: 50%;
+  border: 4px solid var(--duo-border);
+  border-bottom: 6px solid var(--duo-border);
+  background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: filter 0.1s, transform 0.08s, border-color 0.15s;
+}
+.node-bubble:hover { filter: brightness(1.04); }
+.node-bubble:active { transform: translateY(2px); }
+.node-bubble:disabled { cursor: not-allowed; }
+.node-img { width: 54px; height: 54px; object-fit: contain; }
+
+.path-node.is-current .node-bubble {
+  border-color: var(--duo-green);
+  border-bottom-color: var(--duo-green-shadow);
+  background: #e9f7d6;
+  animation: bob 1.6s ease-in-out infinite;
+}
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+
+.path-node.is-done .node-bubble {
+  border-color: #ffe066; border-bottom-color: var(--duo-yellow-shadow); background: #fff5cc;
 }
 
-.header-coins:hover .coin-icon {
-  transform: scale(1.1) rotate(10deg);  /* 悬停动画 */
+.path-node.is-locked .node-bubble { opacity: 0.65; background: var(--duo-card); }
+.node-lock { position: absolute; display: flex; align-items: center; justify-content: center; }
+.node-lock img { width: 26px; height: 26px; object-fit: contain; }
+.node-crown { position: absolute; top: -10px; right: -6px; width: 28px; height: 28px; object-fit: contain; }
+.node-star {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--duo-yellow); color: #fff; font-size: 14px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--duo-yellow-shadow);
 }
 
-/* 响应式 */
-@media (max-width: 768px) {
-  .custom-header { flex-direction: column; gap: 15px; padding: 15px; }
-  .header-left, .header-center, .header-right { width: 100%; justify-content: center; }
-  .levels-grid { grid-template-columns: 1fr; }
+.node-meta { text-align: center; margin-top: 10px; }
+.node-title { font-weight: 800; font-size: 15px; color: var(--duo-ink); }
+.node-sub { font-size: 12px; color: var(--duo-muted); font-weight: 600; }
+.node-score { font-size: 12px; color: var(--duo-yellow-shadow); font-weight: 800; margin-top: 2px; display: inline-flex; align-items: center; gap: 4px; }
+
+/* Special shape popover */
+.node-shapes { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+.shape-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 10px; border-radius: 999px;
+  border: 2px solid var(--duo-yellow-shadow); background: #fff8d6;
+  color: #6b5400; font-weight: 800; font-size: 12px; cursor: pointer;
+  transition: filter 0.1s, transform 0.08s;
 }
+.shape-chip:hover { filter: brightness(1.04); }
+.shape-chip:active { transform: translateY(1px); }
+.shape-chip img { width: 18px; height: 18px; object-fit: contain; }
+.shape-chip small { font-size: 10px; opacity: 0.8; }
+
 @media (max-width: 480px) {
-  .header-title { font-size: clamp(15px, 6vw, 20px); letter-spacing: 0.04em; }
-  .header-title::after { width: 36px; height: 2.5px; margin-top: 4px; }
+  .path { max-width: 320px; height: calc(var(--rows, 5) * 138px); }
+  .node-bubble { width: 70px; height: 70px; }
+  .node-img { width: 46px; height: 46px; }
+  .path-node { width: 130px; }
 }
+
+/* ===== Endless card ===== */
+.endless-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  background: linear-gradient(135deg, #e8f7ff 0%, #d6f0ff 100%);
+  border: 2px solid #9adcff; border-bottom: 5px solid var(--duo-blue-shadow);
+  border-radius: 22px; padding: 18px 20px;
+}
+.endless-card.is-locked { opacity: 0.6; background: var(--duo-card); border-color: var(--duo-border); border-bottom-color: var(--duo-border); }
+.endless-left { display: flex; align-items: center; gap: 14px; }
+.endless-img { width: 54px; height: 54px; object-fit: contain; }
+.endless-title { font-family: 'Fredoka','Nunito',sans-serif; font-size: 18px; font-weight: 700; color: var(--duo-ink); }
+.endless-desc { font-size: 13px; color: var(--duo-muted); font-weight: 600; }
+.endless-btn { margin: 0; font-size: 14px; padding: 12px 18px; }
+.endless-btn:disabled { background: #e5e5e5; border-bottom-color: #c8c8c8; color: #afafaf; }
+
+/* ===== Help ===== */
+.help {
+  background: var(--duo-card); border: 2px solid var(--duo-border); border-radius: 20px;
+  padding: 20px; box-shadow: 0 4px 0 var(--duo-border);
+}
+.help-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; list-style: none; }
+.help-list li { font-size: 14px; font-weight: 600; color: var(--duo-ink); padding-left: 18px; position: relative; }
+.help-list li::before { content: '•'; position: absolute; left: 4px; color: var(--duo-green); font-weight: 800; }
+.help-list strong { color: var(--duo-red); }
 </style>

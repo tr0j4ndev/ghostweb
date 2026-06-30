@@ -234,45 +234,17 @@
 
   <div v-else>
 
-    <div class="custom-header no-print no-export">
+    <div class="report-toolbar no-print no-export">
 
-      <button class="btn btn-outline custom-back-button" @click="goHome">
+      <div class="report-toolbar-left">
+        <h1 class="report-page-title">专注力训练报告</h1>
+        <div class="report-date">生成时间: {{ formatDate(new Date()) }}</div>
+      </div>
 
-        <img class="btn-icon" :src="backIcon" alt="返回主页" />
-
-        返回主页
-
+      <button class="btn btn-outline export-btn" @click="exportToPDF" :disabled="isExporting">
+        <img class="btn-icon" :src="pdfIcon" alt="导出PDF" />
+        <span>{{ isExporting ? '导出中...' : '导出PDF' }}</span>
       </button>
-
-      <div class="overview-header">
-
-      <div class="header-title">
-
-        <span>专注力训练报告</span>
-
-      </div>
-
-      <div class="report-date">
-
-        生成时间: {{ formatDate(new Date()) }}
-
-      </div>
-
-      </div>
-
-      
-
-      <div class="header-actions">
-
-        <button class="btn btn-outline export-btn" @click="exportToPDF" :disabled="isExporting">
-
-          <img class="btn-icon" :src="pdfIcon" alt="导出PDF" />
-
-          <span>{{ isExporting ? '导出中...' : '导出PDF' }}</span>
-
-        </button>
-
-      </div>
 
     </div>
 
@@ -280,285 +252,132 @@
 
       <div class="container report-container" ref="reportContent">
 
-        <div class="report-overview">
-
-          <div class="stats-grid">
-
-            <div class="stat-card primary">
-
-              <img class="stat-icon-img" :src="timeIcon" alt="训练次数" />
-
-              <div class="stat-content">
-
-                <div class="stat-number">{{ statistics.totalSessions || 0 }}</div>
-
-                <div class="stat-label">训练次数</div>
-
-              </div>
-
-            </div>
-
-            <div class="stat-card warning">
-
-              <img class="stat-icon-img" :src="fireIcon" alt="连续训练天数" />
-
-              <div class="stat-content">
-
-                <div class="stat-number">{{ statistics.consecutiveDays || 0 }}</div>
-
-                <div class="stat-label">连续训练天数</div>
-
-              </div>
-
-            </div>
-
-            <div class="stat-card info">
-
-              <img class="stat-icon-img" :src="trophyIcon" alt="最佳连续记录" />
-
-              <div class="stat-content">
-
-                <div class="stat-number">{{ statistics.bestStreak || 0 }}</div>
-
-                <div class="stat-label">最佳连续记录</div>
-
-              </div>
-
-            </div>
-
-            <div class="stat-card success">
-
-              <img class="stat-icon-img" :src="fruitIcon" alt="总苹果数量" />
-
-              <div class="stat-content">
-
-                <div class="stat-number">{{ statistics.totalApplesCaught || 0 }}</div>
-
-                <div class="stat-label">总苹果数量</div>
-
-              </div>
-
-            </div>
-
+        <!-- ===== Stat hero: bold rounded cards ===== -->
+        <section class="stat-hero">
+          <div class="stat-big stat-green">
+            <img :src="timeIcon" alt="训练次数" class="stat-big-icon" />
+            <div class="stat-big-num">{{ statistics.totalSessions || 0 }}</div>
+            <div class="stat-big-label">训练次数</div>
           </div>
+          <div class="stat-big stat-orange">
+            <img :src="fireIcon" alt="连续天数" class="stat-big-icon" />
+            <div class="stat-big-num">{{ statistics.consecutiveDays || 0 }}</div>
+            <div class="stat-big-label">连续天数</div>
+          </div>
+          <div class="stat-big stat-yellow">
+            <img :src="trophyIcon" alt="最佳连击" class="stat-big-icon" />
+            <div class="stat-big-num">{{ statistics.bestStreak || 0 }}</div>
+            <div class="stat-big-label">最佳连击</div>
+          </div>
+          <div class="stat-big stat-blue">
+            <img :src="fruitIcon" alt="总水果数" class="stat-big-icon" />
+            <div class="stat-big-num">{{ statistics.totalApplesCaught || 0 }}</div>
+            <div class="stat-big-label">总水果数</div>
+          </div>
+        </section>
 
-        </div>
+        <!-- ===== Activity graph (GitHub-style contribution heatmap) ===== -->
+        <section class="cal-card">
+          <h2 class="duo-section-title"><img :src="habitPng" alt="近期活跃" class="section-icon" /> 近期活跃</h2>
+          <div class="gh-scroll">
+            <div class="gh-graph">
+              <div class="gh-months">
+                <span v-for="m in activityMonths" :key="m.col" class="gh-month" :style="{ left: (28 + 6 + (m.col - 1) * 17) + 'px' }">{{ m.label }}</span>
+              </div>
+              <div class="gh-body">
+                <div class="gh-weekdays">
+                  <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+                </div>
+                <div class="gh-grid">
+                  <div v-for="(week, wi) in activityGraph" :key="wi" class="gh-col">
+                    <div
+                      v-for="cell in week"
+                      :key="cell.key"
+                      :class="['gh-cell', ghLevel(cell)]"
+                      :title="cell.future ? '' : `${cell.label}${cell.count ? ' · ' + cell.count + '次' : ' · 无训练'}`"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="gh-legend">
+            <span>少</span>
+            <span class="gh-cell gh-0"></span>
+            <span class="gh-cell gh-1"></span>
+            <span class="gh-cell gh-2"></span>
+            <span class="gh-cell gh-3"></span>
+            <span class="gh-cell gh-4"></span>
+            <span>多</span>
+          </div>
+        </section>
 
-        <div class="charts-section">
-
-          <div class="section-header">
-
-            <h2>
-
-              <img class="title-icon-img" :src="tendencyIcon" alt="训练趋势分析" />
-
-              <span>训练趋势分析</span>
-
-            </h2>
-
-            <div class="time-filter no-print no-export">
-
+        <!-- ===== Charts ===== -->
+        <section class="charts-section">
+          <div class="card-head between">
+            <h2 class="duo-section-title"><img :src="tendencyIcon" alt="训练趋势" class="section-icon" /> 训练趋势</h2>
+            <div class="pill-filter no-print no-export">
               <button
-
                 v-for="period in timePeriods"
-
                 :key="period.value"
-
-                :class="['filter-btn', selectedPeriod === period.value ? 'active' : '']"
-
+                :class="['pill', selectedPeriod === period.value ? 'active' : '']"
                 @click="selectPeriod(period.value)"
-
-              >
-
-                {{ period.label }}
-
-              </button>
-
+              >{{ period.label }}</button>
             </div>
-
           </div>
-
           <div class="charts-grid">
-
-            <div class="chart-card">
-
-              <h3>得分趋势</h3>
-
-              <canvas ref="scoreChart" width="400" height="200"></canvas>
-
-            </div>
-
-            <div class="chart-card">
-
-              <h3>准确率变化</h3>
-
-              <canvas ref="accuracyChart" width="400" height="200"></canvas>
-
-            </div>
-
-            <div class="chart-card">
-
-              <h3>关卡分布</h3>
-
-              <canvas ref="levelChart" width="400" height="200"></canvas>
-
-            </div>
-
+            <div class="chart-card"><h3>得分趋势</h3><canvas ref="scoreChart" width="400" height="200"></canvas></div>
+            <div class="chart-card"><h3>准确率变化</h3><canvas ref="accuracyChart" width="400" height="200"></canvas></div>
+            <div class="chart-card"><h3>关卡分布</h3><canvas ref="levelChart" width="400" height="200"></canvas></div>
           </div>
+        </section>
 
-        </div>
-
-        <div class="records-section">
-
-          <div class="section-header">
-
-            <h2>
-
-              <img class="title-icon-img" :src="reportIcon" alt="训练记录详情" />
-
-              <span>训练记录详情</span>
-
-            </h2>
-
-            <div class="records-filter no-print no-export">
-
-              <select v-model="selectedLevelFilter" class="filter-select">
-
-                <option value="">所有关卡</option>
-
-                <option v-for="level in availableLevels" :key="level.id" :value="level.id">
-
-                  {{ level.name }}
-
-                </option>
-
-              </select>
-
-            </div>
-
+        <!-- ===== Records ===== -->
+        <section class="records-section">
+          <div class="card-head between">
+            <h2 class="duo-section-title"><img :src="reportIcon" alt="训练记录" class="section-icon" /> 训练记录</h2>
+            <select v-model="selectedLevelFilter" class="filter-select no-print no-export">
+              <option value="">所有关卡</option>
+              <option v-for="level in availableLevels" :key="level.id" :value="level.id">{{ level.name }}</option>
+            </select>
           </div>
-
-          <div class="table-container">
-
-            <table class="records-table">
-
-              <thead>
-
-                <tr>
-
-                  <th>日期时间</th>
-
-                  <th>关卡</th>
-
-                  <th>得分</th>
-
-                  <th>金币</th>
-
-                  <th>准确率</th>
-
-                  <th>最高连击</th>
-
-                </tr>
-
-              </thead>
-
+          <div class="table-wrap">
+            <table class="rec-table">
+              <thead><tr><th>日期</th><th>关卡</th><th>得分</th><th>金币</th><th>准确率</th><th>连击</th></tr></thead>
               <tbody>
-
                 <tr v-for="record in filteredRecords" :key="record.id">
-
                   <td>{{ formatDateTime(record.date) }}</td>
-
-                  <td>
-
-                    <span class="level-badge">{{ record.levelName }}</span>
-
-                  </td>
-
+                  <td><span class="lvl-chip">{{ record.levelName }}</span></td>
                   <td class="score-cell">{{ record.score }}</td>
-
-                  <td class="coins-cell">
-
-                    <img class="coins-icon-img" :src="glodIcon" alt="金币" />
-
-                    <span>{{ record.coinsEarned }}</span>
-
-                  </td>
-
+                  <td><span class="coins-cell"><img :src="glodIcon" alt="金币" /> {{ record.coinsEarned }}</span></td>
                   <td>
-
-                    <div class="accuracy-bar">
-
-                      <div class="accuracy-fill" :style="{ width: record.accuracy + '%' }"></div>
-
-                      <span class="accuracy-text">{{ record.accuracy }}%</span>
-
-                    </div>
-
+                    <div class="acc-bar"><div class="acc-fill" :style="{ width: record.accuracy + '%' }"></div><span class="acc-text">{{ record.accuracy }}%</span></div>
                   </td>
-
                   <td class="combo-cell">{{ record.maxCombo }}</td>
-
                 </tr>
-
               </tbody>
-
             </table>
-
-            <div v-if="filteredRecords.length === 0" class="no-records">
-
-              <div class="no-records-icon">📝</div>
-
-              <div class="no-records-text">暂无训练记录</div>
-
-              <div class="no-records-hint">开始游戏后这里会显示详细的训练数据</div>
-
+            <div v-if="filteredRecords.length === 0" class="empty-records">
+              <img :src="reportIcon" alt="" class="empty-icon" />
+              <div class="empty-text">暂无训练记录</div>
+              <div class="empty-hint">开始游戏后这里会显示训练数据</div>
             </div>
-
           </div>
+        </section>
 
-        </div>
-
-        <div class="suggestions-section">
-
-          <div class="section-header">
-
-            <h2>
-
-              <img class="title-icon-img" :src="hintIcon" alt="训练建议" />
-
-              <span>训练建议</span>
-
-            </h2>
-
-          </div>
-
-          <div class="suggestions-content">
-
-            <div
-
-              v-for="suggestion in suggestions"
-
-              :key="suggestion.type"
-
-              :class="['suggestion-card', suggestion.type]"
-
-            >
-
-              <img class="suggestion-icon-img" :src="getSuggestionIcon(suggestion)" alt="建议" />
-
-              <div class="suggestion-text">
-
-                <div class="suggestion-title">{{ suggestion.title }}</div>
-
-                <div class="suggestion-desc">{{ suggestion.description }}</div>
-
+        <!-- ===== Suggestions ===== -->
+        <section class="suggestions-section">
+          <div class="card-head"><h2 class="duo-section-title"><img :src="hintIcon" alt="训练建议" class="section-icon" /> 训练建议</h2></div>
+          <div class="sugg-list">
+            <div v-for="suggestion in suggestions" :key="suggestion.type" :class="['sugg-card', suggestion.type]">
+              <img :src="getSuggestionIcon(suggestion)" alt="建议" class="sugg-icon" />
+              <div class="sugg-body">
+                <div class="sugg-title">{{ suggestion.title }}</div>
+                <div class="sugg-desc">{{ suggestion.description }}</div>
               </div>
-
             </div>
-
           </div>
-
-        </div>
+        </section>
 
       </div>
 
@@ -576,23 +395,23 @@ import { useRouter } from 'vue-router'
 import { useGameStore } from '../stores/gameStore'
 
 /* 新增：PNG 图标 */
-import lockIcon from '../assets/lock.png'
+import lockIcon from '../assets/lock.svg'
 import backIcon from '../assets/back.png'
-import storeIcon from '../assets/store.png' // 供需要时使用
-import timeIcon from '../assets/time.png'
-import fireIcon from '../assets/fire.png'
-import trophyIcon from '../assets/trophy.png'
-import fruitIcon from '../assets/fruit.png'
-import tendencyIcon from '../assets/tendency.png'
-import reportIcon from '../assets/report.png'
+import storeIcon from '../assets/store.svg' // 供需要时使用
+import timeIcon from '../assets/time.svg'
+import fireIcon from '../assets/fire.svg'
+import trophyIcon from '../assets/trophy.svg'
+import fruitIcon from '../assets/fruit.svg'
+import tendencyIcon from '../assets/tendency.svg'
+import reportIcon from '../assets/report.svg'
 import glodIcon from '../assets/glod.png'
-import hintIcon from '../assets/hint.png'
-import challengeIcon from '../assets/challenge.png'
-import pdfIcon from '../assets/pdf.png'
+import hintIcon from '../assets/hint.svg'
+import challengeIcon from '../assets/challenge.svg'
+import pdfIcon from '../assets/pdf.svg'
 
-import habitPng from '../assets/habit.png'
-import accuracyPng from '../assets/accuracy.png'
-import insistPng from '../assets/insist.png'
+import habitPng from '../assets/habit.svg'
+import accuracyPng from '../assets/accuracy.svg'
+import insistPng from '../assets/insist.svg'
 
 export default {
   setup() {
@@ -733,7 +552,63 @@ export default {
       if (title.includes('尝试挑战模式')) return challengeIcon
       return hintIcon
     }
-    
+
+    // GitHub-style contribution graph: weeks as columns, 7 days (rows) each
+    const activityGraph = computed(() => {
+      const counts = {}
+      trainingRecords.value.forEach((r) => {
+        const key = new Date(r.date).toDateString()
+        counts[key] = (counts[key] || 0) + 1
+      })
+      const today = new Date()
+      today.setHours(23, 59, 59, 999)
+      const monBasedDow = (today.getDay() + 6) % 7 // 0=Mon ... 6=Sun
+      const NUM_WEEKS = 18
+      const weeks = []
+      for (let w = 0; w < NUM_WEEKS; w++) {
+        const col = []
+        for (let d = 0; d < 7; d++) {
+          const date = new Date(today)
+          date.setDate(today.getDate() - monBasedDow - (NUM_WEEKS - 1 - w) * 7 + d)
+          const key = date.toDateString()
+          const future = date > today
+          col.push({
+            key,
+            date,
+            count: counts[key] || 0,
+            future,
+            label: date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
+          })
+        }
+        weeks.push(col)
+      }
+      return weeks
+    })
+
+    const activityMonths = computed(() => {
+      const months = []
+      let lastMonth = -1
+      activityGraph.value.forEach((week, wi) => {
+        const firstDay = week[0].date
+        const m = firstDay.getMonth()
+        if (m !== lastMonth) {
+          months.push({ col: wi + 1, label: firstDay.toLocaleDateString('zh-CN', { month: 'short' }) })
+          lastMonth = m
+        }
+      })
+      return months
+    })
+
+    const ghLevel = (cell) => {
+      if (cell.future) return 'gh-future'
+      const c = cell.count
+      if (c === 0) return 'gh-0'
+      if (c <= 1) return 'gh-1'
+      if (c <= 3) return 'gh-2'
+      if (c <= 5) return 'gh-3'
+      return 'gh-4'
+    }
+
     const selectPeriod = (period) => {
       selectedPeriod.value = period
       nextTick(() => {
@@ -760,242 +635,194 @@ export default {
       initCharts()
     }
     
+    // Prepare canvas for crisp rendering at any display size (DPR-aware)
+    const prepCanvas = (canvas, logicalH) => {
+      const dpr = window.devicePixelRatio || 1
+      const w = Math.max(canvas.clientWidth || 400, 200)
+      canvas.width = Math.round(w * dpr)
+      canvas.height = Math.round(logicalH * dpr)
+      canvas.style.height = logicalH + 'px'
+      const ctx = canvas.getContext('2d')
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      return { ctx, w, h: logicalH }
+    }
+
+    // Rounded-top rectangle (Duolingo-style 3D bar)
+    const roundBar = (ctx, x, y, bw, bh, r) => {
+      const rad = Math.min(r, bw / 2, bh / 2)
+      ctx.beginPath()
+      ctx.moveTo(x, y + bh)
+      ctx.lineTo(x, y + rad)
+      ctx.quadraticCurveTo(x, y, x + rad, y)
+      ctx.lineTo(x + bw - rad, y)
+      ctx.quadraticCurveTo(x + bw, y, x + bw, y + rad)
+      ctx.lineTo(x + bw, y + bh)
+      ctx.closePath()
+    }
+
     const drawScoreChart = () => {
       const canvas = scoreChart.value
       if (!canvas) return
-      const ctx = canvas.getContext('2d')
-      const recentRecords = [...trainingRecords.value]
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .slice(-20)
-      
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      
-      if (recentRecords.length === 0) {
-        drawNoDataMessage(ctx, canvas, '暂无得分数据')
-        return
+      const { ctx, w, h } = prepCanvas(canvas, 220)
+      const recentRecords = [...trainingRecords.value].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-20)
+      ctx.clearRect(0, 0, w, h)
+      if (recentRecords.length === 0) { drawNoDataMessage(ctx, w, h, '暂无得分数据'); return }
+
+      const padL = 44, padR = 16, padT = 18, padB = 34
+      const cw = w - padL - padR, ch = h - padT - padB
+      const maxScore = Math.max(...recentRecords.map((r) => r.score), 100)
+
+      // gridlines
+      ctx.strokeStyle = '#e5e5e5'; ctx.lineWidth = 1
+      ctx.font = '600 11px Nunito, sans-serif'; ctx.fillStyle = '#777'; ctx.textAlign = 'right'
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + ch - (i / 4) * ch
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke()
+        ctx.fillText(Math.round((i / 4) * maxScore).toString(), padL - 6, y + 4)
       }
-      
-      const padding = 40
-      const chartWidth = canvas.width - padding * 2
-      const chartHeight = canvas.height - padding * 2
-      const maxScore = Math.max(...recentRecords.map(r => r.score), 100)
-      
-      ctx.strokeStyle = '#e5e7eb'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.moveTo(padding, padding)
-      ctx.lineTo(padding, canvas.height - padding)
-      ctx.lineTo(canvas.width - padding, canvas.height - padding)
-      ctx.stroke()
-      
-      ctx.fillStyle = '#6b7280'
-      ctx.font = '10px sans-serif'
-      ctx.textAlign = 'right'
-      for (let i = 0; i <= 5; i++) {
-        const y = canvas.height - padding - (i / 5) * chartHeight
-        const value = Math.round((i / 5) * maxScore)
-        ctx.fillText(value.toString(), padding - 5, y + 3)
-      }
-      
-      const barWidth = Math.max(chartWidth / recentRecords.length * 0.8, 8)
-      const barSpacing = chartWidth / recentRecords.length * 0.2
-      
-      recentRecords.forEach((record, index) => {
-        const x = padding + index * (chartWidth / recentRecords.length) + barSpacing / 2
-        const barHeight = (record.score / maxScore) * chartHeight
-        const y = canvas.height - padding - barHeight
-        
-        const gradient = ctx.createLinearGradient(0, y, 0, canvas.height - padding)
-        gradient.addColorStop(0, '#8b5cf6')
-        gradient.addColorStop(1, '#7c3aed')
-        ctx.fillStyle = gradient
-        ctx.fillRect(x, y, barWidth, barHeight)
-        
-        if (barWidth > 15) {
-          ctx.fillStyle = '#374151'
-          ctx.font = '10px sans-serif'
-          ctx.textAlign = 'center'
-          ctx.fillText(`${record.score}`, x + barWidth / 2, y - 5)
+
+      const n = recentRecords.length
+      const slot = cw / n
+      const barW = Math.max(Math.min(slot * 0.6, 30), 6)
+      recentRecords.forEach((record, i) => {
+        const x = padL + i * slot + (slot - barW) / 2
+        const bh = (record.score / maxScore) * ch
+        const y = padT + ch - bh
+        const grad = ctx.createLinearGradient(0, y, 0, y + bh)
+        grad.addColorStop(0, '#61e002'); grad.addColorStop(1, '#58cc02')
+        ctx.fillStyle = grad
+        roundBar(ctx, x, y, barW, bh, 5); ctx.fill()
+        // 3D bottom shade
+        ctx.fillStyle = '#58a700'
+        ctx.fillRect(x, y + bh - 3, barW, 3)
+        if (barW > 18) {
+          ctx.fillStyle = '#3c3c3c'; ctx.font = '800 10px Nunito, sans-serif'; ctx.textAlign = 'center'
+          ctx.fillText(record.score, x + barW / 2, y - 5)
         }
       })
-      
-      ctx.fillStyle = '#374151'
-      ctx.font = '14px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.font = '10px sans-serif'
-      ctx.fillText('游戏次数', canvas.width / 2, canvas.height - 5)
-      
-      ctx.save()
-      ctx.translate(15, canvas.height / 2)
-      ctx.rotate(-Math.PI / 2)
-      ctx.fillText('得分', 0, 0)
-      ctx.restore()
+      ctx.fillStyle = '#777'; ctx.font = '700 11px Nunito, sans-serif'; ctx.textAlign = 'center'
+      ctx.fillText('游戏次数', w / 2, h - 8)
     }
     
     const drawAccuracyChart = () => {
       const canvas = accuracyChart.value
       if (!canvas) return
-      const ctx = canvas.getContext('2d')
-      const recentRecords = [...trainingRecords.value]
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .slice(-20)
-      
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      
-      if (recentRecords.length === 0) {
-        drawNoDataMessage(ctx, canvas, '暂无准确率数据')
-        return
+      const { ctx, w, h } = prepCanvas(canvas, 220)
+      const recentRecords = [...trainingRecords.value].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-20)
+      ctx.clearRect(0, 0, w, h)
+      if (recentRecords.length === 0) { drawNoDataMessage(ctx, w, h, '暂无准确率数据'); return }
+
+      const padL = 44, padR = 16, padT = 18, padB = 34
+      const cw = w - padL - padR, ch = h - padT - padB
+
+      ctx.strokeStyle = '#e5e5e5'; ctx.lineWidth = 1
+      ctx.font = '600 11px Nunito, sans-serif'; ctx.fillStyle = '#777'; ctx.textAlign = 'right'
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + ch - (i / 4) * ch
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke()
+        ctx.fillText(Math.round((i / 4) * 100) + '%', padL - 6, y + 4)
       }
-      
-      const padding = 40
-      const chartWidth = canvas.width - padding * 2
-      const chartHeight = canvas.height - padding * 2
-      
-      ctx.strokeStyle = '#e5e7eb'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.moveTo(padding, padding)
-      ctx.lineTo(padding, canvas.height - padding)
-      ctx.lineTo(canvas.width - padding, canvas.height - padding)
-      ctx.stroke()
-      
-      ctx.fillStyle = '#6b7280'
-      ctx.font = '10px sans-serif'
-      ctx.textAlign = 'right'
-      for (let i = 0; i <= 5; i++) {
-        const y = canvas.height - padding - (i / 5) * chartHeight
-        const value = Math.round((i / 5) * 100)
-        ctx.fillText(`${value}%`, padding - 5, y + 3)
-      }
-      
-      const barWidth = Math.max(chartWidth / recentRecords.length * 0.8, 8)
-      const barSpacing = chartWidth / recentRecords.length * 0.2
-      
-      recentRecords.forEach((record, index) => {
-        const x = padding + index * (chartWidth / recentRecords.length) + barSpacing / 2
-        const barHeight = (record.accuracy / 100) * chartHeight
-        const y = canvas.height - padding - barHeight
-        
-        const gradient = ctx.createLinearGradient(0, y, 0, canvas.height - padding)
-        gradient.addColorStop(0, '#10b981')
-        gradient.addColorStop(1, '#059669')
-        ctx.fillStyle = gradient
-        ctx.fillRect(x, y, barWidth, barHeight)
-        
-        if (barWidth > 15) {
-          ctx.fillStyle = '#374151'
-          ctx.font = '10px sans-serif'
-          ctx.textAlign = 'center'
-          ctx.fillText(`${record.accuracy}%`, x + barWidth / 2, y - 5)
+
+      const n = recentRecords.length
+      const slot = cw / n
+      const barW = Math.max(Math.min(slot * 0.6, 30), 6)
+      recentRecords.forEach((record, i) => {
+        const x = padL + i * slot + (slot - barW) / 2
+        const bh = (record.accuracy / 100) * ch
+        const y = padT + ch - bh
+        const grad = ctx.createLinearGradient(0, y, 0, y + bh)
+        grad.addColorStop(0, '#4ad0f6'); grad.addColorStop(1, '#1cb0f6')
+        ctx.fillStyle = grad
+        roundBar(ctx, x, y, barW, bh, 5); ctx.fill()
+        ctx.fillStyle = '#1899d6'
+        ctx.fillRect(x, y + bh - 3, barW, 3)
+        if (barW > 18) {
+          ctx.fillStyle = '#3c3c3c'; ctx.font = '800 10px Nunito, sans-serif'; ctx.textAlign = 'center'
+          ctx.fillText(record.accuracy + '%', x + barW / 2, y - 5)
         }
       })
-      
-      ctx.fillStyle = '#374151'
-      ctx.font = '14px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.font = '10px sans-serif'
-      ctx.fillText('游戏次数', canvas.width / 2, canvas.height - 5)
-      
-      ctx.save()
-      ctx.translate(15, canvas.height / 2)
-      ctx.rotate(-Math.PI / 2)
-      ctx.fillText('准确率(%)', 0, 0)
-      ctx.restore()
+      ctx.fillStyle = '#777'; ctx.font = '700 11px Nunito, sans-serif'; ctx.textAlign = 'center'
+      ctx.fillText('游戏次数', w / 2, h - 8)
     }
     
-const drawLevelChart = () => {
-  const canvas = levelChart.value;
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const records = gameStore.getRecentRecords(selectedPeriod.value);
-  
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  if (records.length === 0) {
-    drawNoDataMessage(ctx, canvas, '暂无关卡数据');
-    return;
-  }
-  
-  // 获取关卡列表
-  const levels = gameStore.gameData.levels;
-  
-  // 初始化四个类别的计数器
-  const categoryCounts = {
-    '基础关卡': 0,
-    '特殊关卡': 0,
-    '无限模式（基础）': 0,
-    '无限模式（特殊）': 0
-  };
-  
-  // 统计每个类别的游戏次数
-  records.forEach(record => {
-    const level = levels.find(l => l.id === record.levelId);
-    if (!level) return;
-    
-    if (level.mode === 'timed') {
-      categoryCounts['基础关卡']++;
-    } else if (level.mode === 'interference' || level.mode === 'multi-target') {
-      categoryCounts['特殊关卡']++;
-    } else if (level.mode === 'endless') {
-      if (level.shape === 'circle' || level.shape === 'square' || level.shape === 'triangle') {
-        categoryCounts['无限模式（基础）']++;
-      } else {
-        categoryCounts['无限模式（特殊）']++;
-      }
+    const drawLevelChart = () => {
+      const canvas = levelChart.value
+      if (!canvas) return
+      const { ctx, w, h } = prepCanvas(canvas, 220)
+      const records = gameStore.getRecentRecords(selectedPeriod.value)
+      ctx.clearRect(0, 0, w, h)
+      if (records.length === 0) { drawNoDataMessage(ctx, w, h, '暂无关卡数据'); return }
+
+      const levels = gameStore.gameData.levels
+      const categories = [
+        { name: '基础关卡', color: '#58cc02' },
+        { name: '特殊关卡', color: '#1cb0f6' },
+        { name: '无尽·基础', color: '#ffc800' },
+        { name: '无尽·特殊', color: '#ff4b4b' },
+      ]
+      const counts = [0, 0, 0, 0]
+      records.forEach((record) => {
+        const level = levels.find((l) => l.id === record.levelId)
+        if (!level) return
+        if (level.mode === 'timed') counts[0]++
+        else if (level.mode === 'interference' || level.mode === 'multi-target') counts[1]++
+        else if (level.mode === 'endless') {
+          if (['circle', 'square', 'triangle'].includes(level.shape)) counts[2]++; else counts[3]++
+        }
+      })
+      const total = counts.reduce((a, b) => a + b, 0)
+      if (total === 0) { drawNoDataMessage(ctx, w, h, '暂无关卡数据'); return }
+
+      // Pie/donut on the left — compact so legend always fits
+      const cx = Math.min(w * 0.25, 72)
+      const cy = h / 2
+      const radius = Math.max(Math.min(cx, cy) - 8, 18)
+      const inner = radius * 0.55
+      let angle = -Math.PI / 2
+
+      counts.forEach((c, i) => {
+        if (c === 0) return
+        const slice = (c / total) * Math.PI * 2
+        ctx.beginPath()
+        ctx.moveTo(cx, cy)
+        ctx.arc(cx, cy, radius, angle, angle + slice)
+        ctx.closePath()
+        ctx.fillStyle = categories[i].color
+        ctx.fill()
+        angle += slice
+      })
+      // donut hole
+      ctx.beginPath(); ctx.arc(cx, cy, inner, 0, Math.PI * 2)
+      ctx.fillStyle = '#fff'; ctx.fill()
+      // center total
+      ctx.fillStyle = '#3c3c3c'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.font = '800 20px Fredoka, Nunito, sans-serif'
+      ctx.fillText(total, cx, cy - 4)
+      ctx.fillStyle = '#777'; ctx.font = '700 10px Nunito, sans-serif'
+      ctx.fillText('总次数', cx, cy + 12)
+
+      // Legend on the right — positioned further right with smaller dots
+      const legX = cx + radius + 24
+      const legDotR = 5
+      let legY = cy - (categories.length * 34) / 2 + 8
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+      categories.forEach((cat, i) => {
+        const c = counts[i]
+        ctx.fillStyle = cat.color
+        ctx.beginPath(); ctx.arc(legX + legDotR, legY, legDotR, 0, Math.PI * 2); ctx.fill()
+        ctx.fillStyle = '#3c3c3c'; ctx.font = '800 12px Nunito, sans-serif'
+        ctx.fillText(cat.name, legX + legDotR * 2 + 7, legY)
+        ctx.fillStyle = '#999'; ctx.font = '700 11px Nunito, sans-serif'
+        ctx.fillText(`${c} 次 · ${Math.round((c / total) * 100)}%`, legX + legDotR * 2 + 7, legY + 13)
+        legY += 34
+      })
     }
-  });
-  
-  const total = Object.values(categoryCounts).reduce((sum, count) => sum + count, 0);
-  
-  if (total === 0) {
-    drawNoDataMessage(ctx, canvas, '暂无关卡数据');
-    return;
-  }
-  
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2 + 10;
-  const radius = Math.min(canvas.width, canvas.height) / 3;
-  const colors = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
-  let currentAngle = -Math.PI / 2;
-  
-  // 只绘制有数据的类别
-  Object.entries(categoryCounts).forEach(([category, count], index) => {
-    if (count === 0) return;
-    
-    const percentage = count / total;
-    const sliceAngle = percentage * 2 * Math.PI;
-    
-    ctx.fillStyle = colors[index % colors.length];
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
-    ctx.closePath();
-    ctx.fill();
-    
-    const labelAngle = currentAngle + sliceAngle / 2;
-    const labelX = centerX + Math.cos(labelAngle) * (radius + 25);
-    const labelY = centerY + Math.sin(labelAngle) * (radius + 25);
-    
-    ctx.fillStyle = '#374151';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${category}`, labelX, labelY);
-    ctx.fillText(`${count}次`, labelX, labelY + 12);
-    ctx.fillText(`${Math.round(percentage * 100)}%`, labelX, labelY + 24);
-    
-    currentAngle += sliceAngle;
-  });
-  
-  ctx.fillStyle = '#374151';
-  ctx.font = '14px sans-serif';
-  ctx.textAlign = 'center';
-}
-    
-    const drawNoDataMessage = (ctx, canvas, message) => {
-      ctx.fillStyle = '#9ca3af'
-      ctx.font = '16px sans-serif'
+
+    const drawNoDataMessage = (ctx, w, h, message) => {
+      ctx.fillStyle = '#afafaf'
+      ctx.font = '700 15px Nunito, sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText(message, canvas.width / 2, canvas.height / 2)
+      ctx.fillText(message, w / 2, h / 2)
     }
     
     // 直接下载PDF功能
@@ -1071,13 +898,13 @@ const drawLevelChart = () => {
         position: fixed;
         top: 20px;
         right: 20px;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        background: ${type === 'success' ? '#58cc02' : type === 'error' ? '#ff4b4b' : '#1cb0f6'};
         color: white;
         padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: 16px;
+        border-bottom: 4px solid ${type === 'success' ? '#58a700' : type === 'error' ? '#ea2b2b' : '#1899d6'};
         z-index: 1000;
-        font-weight: 600;
+        font-weight: 800;
         max-width: 350px;
         word-wrap: break-word;
       `
@@ -1227,6 +1054,9 @@ const drawLevelChart = () => {
       availableLevels,
       suggestions,
       getSuggestionIcon,
+      activityGraph,
+      activityMonths,
+      ghLevel,
       selectPeriod,
       formatDate,
       formatDateTime,
@@ -1256,7 +1086,8 @@ const drawLevelChart = () => {
       glodIcon,
       hintIcon,
       challengeIcon,
-      pdfIcon
+      pdfIcon,
+      habitPng
     }
   }
 }
@@ -1311,7 +1142,17 @@ const drawLevelChart = () => {
   margin: 0 auto;
 }
 
-.no-print, .no-export {}
+/* Toolbar */
+.report-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 20px; flex-wrap: wrap;
+  border-bottom: 2px solid var(--duo-border);
+}
+.report-toolbar-left { display: flex; flex-direction: column; gap: 2px; }
+.report-page-title { font-family: 'Fredoka','Nunito',sans-serif; font-size: 26px; font-weight: 700; color: var(--duo-ink); }
+.report-date { font-size: 13px; color: var(--duo-muted); font-weight: 600; }
+.export-btn { padding: 10px 16px; font-size: 14px; white-space: nowrap; margin: 0; }
+.export-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* 密码验证样式 */
 .password-overlay {
@@ -1320,7 +1161,7 @@ const drawLevelChart = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(60, 60, 60, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1329,25 +1170,27 @@ const drawLevelChart = () => {
 
 .password-modal {
   background: white;
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 40px;
   max-width: 400px;
   width: 90%;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 0 var(--duo-border);
+  border: 2px solid var(--duo-border);
 }
 
 .password-header h2 {
-  color: #374151;
+  color: var(--duo-ink);
   margin-bottom: 8px;
   font-size: 24px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  font-family: 'Fredoka','Nunito',sans-serif;
 }
 
 .password-header p {
-  color: #6b7280;
+  color: var(--duo-muted);
   margin-bottom: 24px;
 }
 
@@ -1359,38 +1202,43 @@ const drawLevelChart = () => {
 
 .password-input {
   width: 85%;
-  padding: 12px 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  padding: 14px 16px;
+  border: 2px solid var(--duo-border);
+  border-bottom: 4px solid var(--duo-border);
+  border-radius: 14px;
   font-size: 16px;
   text-align: center;
+  font-family: 'Nunito',sans-serif;
 }
 
 .password-input:focus {
   outline: none;
-  border-color: #8b5cf6;
+  border-color: var(--duo-blue);
+  border-bottom-color: var(--duo-blue-shadow);
 }
 
 .password-error {
-  color: #ef4444;
+  color: var(--duo-red);
   font-size: 14px;
+  font-weight: 700;
   margin-top: 8px;
 }
 
 .password-hint {
   margin-top: 16px;
-  color: #9ca3af;
+  color: var(--duo-muted);
 }
 
 .forgot-btn {
   background: transparent;
-  color: #8b5cf6;
-  border: 1px solid #8b5cf6;
+  color: var(--duo-blue);
+  border: 2px solid var(--duo-blue) !important;
+  border-bottom: 4px solid var(--duo-blue-shadow) !important;
   font-size: 14px;
 }
 
 .forgot-btn:hover {
-  background: #f3e8ff;
+  background: #e8f7ff;
 }
 
 .phone-verified {
@@ -1401,12 +1249,12 @@ const drawLevelChart = () => {
 }
 
 .success-message {
-  color: #10b981;
-  font-weight: 600;
+  color: var(--duo-green-shadow);
+  font-weight: 800;
   padding: 8px;
-  background: #f0fdf4;
-  border-radius: 6px;
-  border: 1px solid #bbf7d0;
+  background: #e9f7d6;
+  border-radius: 12px;
+  border: 2px solid var(--duo-green);
 }
 
 /* 头部样式 */
@@ -1434,12 +1282,12 @@ const drawLevelChart = () => {
 
 /* 报告内容样式 */
 .report-overview {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  background: var(--duo-green);
   color: white;
-  border-radius: 16px;
+  border-radius: 24px;
+  border-bottom: 6px solid var(--duo-green-shadow);
   padding: 32px;
   margin-bottom: 32px;
-  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3);
 }
 
 .overview-header {
@@ -1448,8 +1296,9 @@ const drawLevelChart = () => {
 }
 
 .report-title {
+  font-family: 'Fredoka','Nunito',sans-serif;
   font-size: 32px;
-  font-weight: bold;
+  font-weight: 700;
   margin-bottom: 8px;
   display: inline-flex;
   align-items: center;
@@ -1457,7 +1306,7 @@ const drawLevelChart = () => {
 }
 
 .report-date {
-  opacity: 0.9;
+  opacity: 0.95;
   font-size: 16px;
 }
 
@@ -1468,24 +1317,25 @@ const drawLevelChart = () => {
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
   padding: 24px;
   display: flex;
   align-items: center;
   gap: 16px;
-  backdrop-filter: blur(10px);
 }
 
 .stat-number {
+  font-family: 'Fredoka','Nunito',sans-serif;
   font-size: 28px;
-  font-weight: bold;
+  font-weight: 700;
   margin-bottom: 4px;
 }
 
 .stat-label {
   font-size: 14px;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 /* 图表区域样式 */
@@ -1503,9 +1353,10 @@ const drawLevelChart = () => {
 }
 
 .section-header h2 {
-  color: #374151;
+  color: var(--duo-ink);
+  font-family: 'Fredoka','Nunito',sans-serif;
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1519,22 +1370,30 @@ const drawLevelChart = () => {
 
 .filter-btn {
   padding: 8px 16px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid var(--duo-border);
+  border-bottom: 4px solid var(--duo-border);
   background: white;
-  border-radius: 8px;
+  border-radius: 14px;
   font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: filter 0.1s, transform 0.08s;
 }
 
 .filter-btn:hover {
-  border-color: #8b5cf6;
+  background: #f4fce8;
+}
+
+.filter-btn:active {
+  border-bottom-width: 2px;
+  transform: translateY(2px);
 }
 
 .filter-btn.active {
-  background: #8b5cf6;
+  background: var(--duo-green);
   color: white;
-  border-color: #8b5cf6;
+  border-color: var(--duo-green);
+  border-bottom-color: var(--duo-green-shadow);
 }
 
 .charts-grid {
@@ -1545,16 +1404,17 @@ const drawLevelChart = () => {
 
 .chart-card {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
+  border: 2px solid var(--duo-border);
+  box-shadow: 0 4px 0 var(--duo-border);
 }
 
 .chart-card h3 {
-  color: #374151;
+  color: var(--duo-ink);
+  font-family: 'Fredoka','Nunito',sans-serif;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 16px;
   text-align: center;
 }
@@ -1576,18 +1436,19 @@ const drawLevelChart = () => {
 
 .filter-select {
   padding: 8px 12px;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border: 2px solid var(--duo-border);
+  border-radius: 12px;
   font-size: 14px;
+  font-weight: 600;
   background: white;
 }
 
 .table-container {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
+  border: 2px solid var(--duo-border);
+  box-shadow: 0 4px 0 var(--duo-border);
 }
 
 .records-table {
@@ -1596,44 +1457,45 @@ const drawLevelChart = () => {
 }
 
 .records-table th {
-  background: #f9fafb;
+  background: var(--duo-card);
   padding: 16px 12px;
   text-align: left;
-  font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  font-weight: 800;
+  color: var(--duo-ink);
+  border-bottom: 2px solid var(--duo-border);
 }
 
 .records-table td {
   padding: 12px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--duo-border);
 }
 
 .level-badge {
-  background: #e0e7ff;
-  color: #3730a3;
-  padding: 4px 8px;
-  border-radius: 6px;
+  background: #e9f7d6;
+  color: var(--duo-green-shadow);
+  padding: 4px 10px;
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 800;
+  border: 2px solid var(--duo-green);
 }
 
 .score-cell {
-  font-weight: 600;
-  color: #059669;
+  font-weight: 800;
+  color: var(--duo-green-shadow);
 }
 
 .coins-cell {
-  color: #d97706;
-  font-weight: 600;
+  color: var(--duo-yellow-shadow);
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .combo-cell {
-  color: #dc2626;
-  font-weight: 600;
+  color: var(--duo-red);
+  font-weight: 800;
 }
 
 .accuracy-bar {
@@ -1645,7 +1507,7 @@ const drawLevelChart = () => {
 }
 
 .accuracy-fill {
-  background: linear-gradient(90deg, #10b981, #059669);
+  background: linear-gradient(90deg, var(--duo-green), var(--duo-green-hover));
   height: 100%;
   border-radius: 8px;
   transition: width 0.3s ease;
@@ -1696,39 +1558,41 @@ const drawLevelChart = () => {
 
 .suggestion-card {
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  border-left: 4px solid;
+  border: 2px solid var(--duo-border);
+  border-left: 6px solid;
+  box-shadow: 0 4px 0 var(--duo-border);
 }
 
 .suggestion-card.info {
-  border-color: #3b82f6;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-left-color: var(--duo-blue);
+  background: #e8f7ff;
 }
 
 .suggestion-card.warning {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-left-color: var(--duo-yellow);
+  background: #fff8d6;
 }
 
 .suggestion-card.success {
-  border-color: #10b981;
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-left-color: var(--duo-green);
+  background: #e9f7d6;
 }
 
 .suggestion-title {
   font-size: 16px;
-  font-weight: 600;
-  color: #374151;
+  font-weight: 800;
+  color: var(--duo-ink);
   margin-bottom: 4px;
 }
 
 .suggestion-desc {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--duo-ink);
   line-height: 1.5;
 }
 
@@ -1862,13 +1726,12 @@ const drawLevelChart = () => {
 
 /* 保持原有标题样式 */
 .header-title {
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
-    "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
-  font-weight: 800;
+  font-family: 'Fredoka','Nunito',sans-serif;
+  font-weight: 700;
   font-size: clamp(20px, 5vw, 30px);
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  color: #111827;
+  letter-spacing: 0.02em;
+  color: var(--duo-ink);
   white-space: nowrap;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -1880,12 +1743,11 @@ const drawLevelChart = () => {
 .header-title::after {
   content: "";
   display: block;
-  width: 44px;
-  height: 3px;
+  width: 48px;
+  height: 4px;
   border-radius: 999px;
   margin: 6px auto 0;
-  background: linear-gradient(90deg, #8b5cf6 0%, #f59e0b 100%);
-  opacity: 0.85;
+  background: var(--duo-green);
 }
 
 /* 移动端适配 */
@@ -1919,12 +1781,12 @@ const drawLevelChart = () => {
 @media (max-width: 480px) {
   .header-title {
     font-size: clamp(15px, 6vw, 20px);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
   }
   
   .header-title::after {
-    width: 36px;
-    height: 2.5px;
+    width: 40px;
+    height: 3.5px;
     margin-top: 4px;
   }
 }
@@ -1961,13 +1823,12 @@ const drawLevelChart = () => {
 
 /* 保持原有标题样式 */
 .header-title {
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
-    "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
-  font-weight: 800;
+  font-family: 'Fredoka','Nunito',sans-serif;
+  font-weight: 700;
   font-size: clamp(20px, 5vw, 30px);
   line-height: 1.2;
-  letter-spacing: 0.06em;
-  color: #111827;
+  letter-spacing: 0.02em;
+  color: var(--duo-ink);
   white-space: nowrap;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -1979,12 +1840,11 @@ const drawLevelChart = () => {
 .header-title::after {
   content: "";
   display: block;
-  width: 44px;
-  height: 3px;
+  width: 48px;
+  height: 4px;
   border-radius: 999px;
   margin: 6px auto 0;
-  background: linear-gradient(90deg, #8b5cf6 0%, #f59e0b 100%);
-  opacity: 0.85;
+  background: var(--duo-green);
 }
 
 /* 移动端适配 */
@@ -2018,12 +1878,12 @@ const drawLevelChart = () => {
 @media (max-width: 480px) {
   .header-title {
     font-size: clamp(15px, 6vw, 20px);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.02em;
   }
   
   .header-title::after {
-    width: 36px;
-    height: 2.5px;
+    width: 40px;
+    height: 3.5px;
     margin-top: 4px;
   }
 }
@@ -2042,17 +1902,146 @@ const drawLevelChart = () => {
 /* 特别调整忘记密码按钮 */
 .password-form .forgot-btn {
   background: transparent;
-  color: #8b5cf6;
-  border: 1px solid #8b5cf6;
-  font-size: 16px; /* 统一字体大小 */
+  color: var(--duo-blue);
+  border: 2px solid var(--duo-blue) !important;
+  border-bottom: 4px solid var(--duo-blue-shadow) !important;
+  font-size: 16px;
 }
 
 .password-form .forgot-btn:hover {
-  background: #f3e8ff;
+  background: #e8f7ff;
 }
 
 /* 调整按钮间距 */
 .password-form > div > .btn {
   margin-top: 12px;
+}
+
+/* ===== Redesigned report layout ===== */
+.report-container { max-width: 960px; display: flex; flex-direction: column; gap: 22px; }
+.section-icon { width: 24px; height: 24px; object-fit: contain; }
+.card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.card-head.between { justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+/* Stat hero */
+.stat-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+.stat-big {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  border-radius: 20px; padding: 20px 12px;
+  border: 2px solid var(--duo-border); border-bottom: 5px solid var(--duo-border);
+  background: #fff; text-align: center;
+}
+.stat-big-icon { width: 34px; height: 34px; object-fit: contain; }
+.stat-big-num { font-family: 'Fredoka','Nunito',sans-serif; font-size: 30px; font-weight: 700; color: var(--duo-ink); line-height: 1; }
+.stat-big-label { font-size: 13px; font-weight: 800; color: var(--duo-muted); }
+.stat-green { background: #e9f7d6; border-color: var(--duo-green); border-bottom-color: var(--duo-green-shadow); }
+.stat-orange { background: #ffe6d6; border-color: #ff9600; border-bottom-color: #e6a700; }
+.stat-yellow { background: #fff5cc; border-color: #ffe066; border-bottom-color: var(--duo-yellow-shadow); }
+.stat-blue { background: #e8f7ff; border-color: var(--duo-blue); border-bottom-color: var(--duo-blue-shadow); }
+
+/* Activity calendar */
+.cal-card {
+  background: #fff; border: 2px solid var(--duo-border); border-radius: 20px;
+  padding: 20px; box-shadow: 0 4px 0 var(--duo-border);
+}
+/* GitHub-style contribution graph */
+.gh-scroll { overflow-x: auto; padding: 4px 2px 6px; }
+.gh-graph { display: flex; flex-direction: column; gap: 5px; width: max-content; margin: 10px auto 0; }
+.gh-months {
+  position: relative; height: 16px;
+  font-size: 11px; font-weight: 700; color: var(--duo-muted);
+}
+.gh-month {
+  position: absolute; top: 0; white-space: nowrap;
+}
+.gh-body { display: grid; grid-template-columns: 28px 1fr; gap: 6px; align-items: center; }
+.gh-weekdays {
+  display: grid; grid-template-rows: repeat(7, 14px); gap: 3px;
+  font-size: 10px; font-weight: 700; color: var(--duo-muted);
+}
+.gh-weekdays span { height: 14px; line-height: 14px; text-align: right; }
+.gh-grid { display: grid; grid-auto-flow: column; gap: 3px; }
+.gh-col { display: grid; grid-template-rows: repeat(7, 14px); gap: 3px; }
+.gh-cell {
+  width: 14px; height: 14px; border-radius: 3px;
+  background: #ebedf0; border: 1px solid rgba(0,0,0,0.04);
+}
+.gh-cell.gh-future { background: transparent; border-color: transparent; }
+.gh-cell.gh-0 { background: #ebedf0; }
+.gh-cell.gh-1 { background: #9be9a8; }
+.gh-cell.gh-2 { background: #40c463; }
+.gh-cell.gh-3 { background: #30a14e; }
+.gh-cell.gh-4 { background: #216e39; }
+.gh-legend { display: flex; align-items: center; gap: 5px; margin: 10px auto 0; width: max-content; font-size: 11px; font-weight: 700; color: var(--duo-muted); }
+.gh-legend .gh-cell { width: 14px; height: 14px; }
+
+/* Charts */
+.charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.chart-card {
+  background: #fff; border: 2px solid var(--duo-border); border-radius: 18px;
+  padding: 18px; box-shadow: 0 4px 0 var(--duo-border);
+}
+.chart-card h3 { font-family: 'Fredoka','Nunito',sans-serif; font-size: 16px; font-weight: 700; color: var(--duo-ink); margin-bottom: 12px; text-align: center; }
+.chart-card canvas { width: 100%; height: 220px; display: block; }
+
+.pill-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  padding: 7px 14px; border-radius: 999px;
+  border: 2px solid var(--duo-border); border-bottom: 4px solid var(--duo-border);
+  background: #fff; font-weight: 800; font-size: 13px; color: var(--duo-muted); cursor: pointer;
+  transition: filter 0.1s, transform 0.08s, border-bottom-width 0.08s;
+}
+.pill:hover { background: var(--duo-card); }
+.pill:active { border-bottom-width: 2px; transform: translateY(2px); }
+.pill.active { background: var(--duo-green); color: #fff; border-color: var(--duo-green); border-bottom-color: var(--duo-green-shadow); }
+
+/* Records */
+.filter-select { padding: 8px 12px; border: 2px solid var(--duo-border); border-radius: 12px; font-size: 14px; font-weight: 600; background: #fff; }
+.table-wrap {
+  background: #fff; border: 2px solid var(--duo-border); border-radius: 18px;
+  overflow: hidden; box-shadow: 0 4px 0 var(--duo-border);
+}
+.rec-table { width: 100%; border-collapse: collapse; }
+.rec-table th { background: var(--duo-card); padding: 14px 12px; text-align: left; font-weight: 800; color: var(--duo-ink); border-bottom: 2px solid var(--duo-border); font-size: 14px; }
+.rec-table td { height: 54px; padding: 8px 12px; border-bottom: 1px solid var(--duo-border); font-size: 14px; vertical-align: middle; }
+.rec-table tbody tr:last-child td { border-bottom: none; }
+.lvl-chip { display: inline-block; background: #e9f7d6; color: var(--duo-green-shadow); border: 2px solid var(--duo-green); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 800; line-height: 1.3; }
+.score-cell { font-weight: 800; color: var(--duo-green-shadow); }
+.coins-cell { color: var(--duo-yellow-shadow); font-weight: 800; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.coins-cell img { width: 16px; height: 16px; object-fit: contain; }
+.combo-cell { color: var(--duo-red); font-weight: 800; }
+.acc-bar { position: relative; display: inline-block; background: var(--duo-border); border-radius: 999px; height: 18px; width: 90px; overflow: hidden; vertical-align: middle; }
+.acc-fill { background: linear-gradient(90deg, var(--duo-green), var(--duo-green-hover)); height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+.acc-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+
+.empty-records { text-align: center; padding: 48px 20px; color: var(--duo-muted); }
+.empty-icon { width: 56px; height: 56px; object-fit: contain; opacity: 0.4; margin-bottom: 12px; }
+.empty-text { font-size: 18px; font-weight: 800; }
+.empty-hint { font-size: 14px; margin-top: 4px; }
+
+/* Suggestions */
+.sugg-list { display: flex; flex-direction: column; gap: 12px; }
+.sugg-card {
+  display: flex; align-items: flex-start; gap: 14px;
+  border-radius: 18px; padding: 16px 18px;
+  border: 2px solid var(--duo-border); border-left: 6px solid;
+  box-shadow: 0 4px 0 var(--duo-border);
+}
+.sugg-card.info { border-left-color: var(--duo-blue); background: #e8f7ff; }
+.sugg-card.warning { border-left-color: var(--duo-yellow); background: #fff8d6; }
+.sugg-card.success { border-left-color: var(--duo-green); background: #e9f7d6; }
+.sugg-icon { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
+.sugg-title { font-weight: 800; font-size: 16px; color: var(--duo-ink); margin-bottom: 2px; }
+.sugg-desc { font-size: 14px; color: var(--duo-ink); line-height: 1.5; font-weight: 600; }
+
+@media (max-width: 600px) {
+  .stat-hero { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .rec-table { font-size: 12px; }
+  .rec-table th, .rec-table td { padding: 8px 6px; }
 }
 </style>

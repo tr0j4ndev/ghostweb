@@ -1,78 +1,142 @@
 <template>
-  <div class="page-wrapper">
-    <div class="custom-header">
-      <button class="btn btn-outline custom-back-button" @click="goBack">
-        <img class="btn-icon" :src="backIcon" alt="返回" />
-        <span>返回</span>
-      </button>
-      <div class="header-title">{{ currentLevel.name }}</div>
-      <div class="header-coins">
-        <span v-if="gameMode === 'timed'">时间: {{ gameTimeText }}</span>
-        <span v-else>时长: {{ gameTimeText }}</span>
+  <div class="game-shell">
+    <!-- ===== Slim top bar ===== -->
+    <header class="g-top">
+      <div class="g-top-inner">
+        <button class="g-back" @click="goBack" aria-label="返回">
+          <img class="g-back-icon" :src="backIcon" alt="返回" />
+        </button>
+        <div class="g-progress">
+          <div class="g-progress-fill" :style="{ width: lessonProgress + '%' }"></div>
+          <span class="g-progress-label">{{ Math.round(lessonProgress) }}%</span>
+        </div>
+        <div class="g-indicator">
+          <img v-if="!isEndless" class="g-ind-icon" :src="timeIcon" alt="时间" />
+          <span v-else class="g-ind-badge">Lv{{ gameLevel }}</span>
+          <span v-if="!isEndless">{{ gameTimeText }}</span>
+        </div>
       </div>
-    </div>
-  </div>
+    </header>
 
-  <div class="game-container">
-    <div class="game-stats">
-      <div class="stat-group">
-        <div class="stat-item"><div class="badge">得分: {{ score }}</div></div>
-        <div class="stat-item"><div class="badge">等级: {{ gameLevel }}</div></div>
-        <div class="stat-item"><div class="badge">连击: {{ combo }}</div></div>
-        <div class="stat-item"><div class="badge badge-miss">错过: {{ missedApples }}</div></div>
+    <!-- ===== Centered stage ===== -->
+    <main class="g-stage">
+     <div class="g-stage-inner">
+      <div class="g-level-tag">
+        <span class="g-level-dot"></span>{{ currentLevel.name }}
       </div>
-      <div class="coins-earned">
-        <img class="coin-icon" :src="glodIcon" alt="金币" />
-        <span>{{ `+${coinsEarned}` }}</span>
-      </div>
-    </div>
 
-    <div class="game-area">
-      <div class="canvas-container">
-        <canvas 
-          ref="gameCanvas" class="game-canvas" width="400" height="400"
+      <!-- Canvas hero -->
+      <div class="g-canvas-wrap">
+        <canvas
+          ref="gameCanvas" class="g-canvas" width="400" height="400"
           @mousedown="handleMouseDown" @mousemove="handleMouseMove" @mouseup="handleMouseUp"
+          @mouseleave="handleMouseUp"
           @touchstart="handleTouchStart" @touchmove="handleTouchMove" @touchend="handleTouchEnd"
         ></canvas>
 
-        <div v-if="showEncouragement" class="encouragement success">{{ encouragement }}</div>
-        <div v-if="showMissText" class="encouragement miss">{{ missText }}</div>
+        <div v-if="showEncouragement" class="g-float success">{{ encouragement }}</div>
+        <div v-if="showMissText" class="g-float miss">{{ missText }}</div>
 
-        <div v-if="isDizzy" class="dizzy-overlay">
-          <div class="dizzy-text">😵 眩晕中...</div>
+        <transition name="fade">
+          <div v-if="!isPlaying && score === 0 && !autoStart" class="g-overlay">
+            <div class="g-overlay-card">
+              <img class="g-overlay-ghost" :src="ghostImg" alt="" />
+              <div class="g-overlay-title">准备好了吗？</div>
+              <div class="g-overlay-sub">{{ currentLevel.name }}</div>
+              <button class="btn btn-green g-start" @click="startGame">
+                <img class="btn-icon" :src="startIcon" alt="开始" /> 开始
+              </button>
+            </div>
+          </div>
+        </transition>
+
+        <div v-if="isDizzy" class="g-dizzy">
+          <div class="g-dizzy-badge">😵 眩晕中</div>
         </div>
       </div>
 
-      <div class="info-panel">
-        <div class="game-controls">
-          <button v-if="!autoStart && !isPlaying && score === 0" class="btn btn-green control-btn" @click="startGame">▶️ 开始游戏</button>
-          <div v-else-if="isPlaying || score > 0" class="control-group">
-            <button class="btn btn-outline control-btn" @click="togglePause">
-              <img v-if="isPlaying" class="btn-icon" :src="suspendIcon" alt="暂停" />
-              <span>{{ isPlaying ? '暂停' : '继续' }}</span>
-            </button>
-            <button class="btn btn-outline control-btn" @click="endGame">
-              <img class="btn-icon" :src="finishIcon" alt="结束游戏" />
-              <span>结束游戏</span>
-            </button>
+      <!-- Lightweight stat strip -->
+      <div class="g-stats">
+        <div class="g-stat s-score"><img :src="trophyIcon" alt="" /><b>{{ score }}</b><span>得分</span></div>
+        <div class="g-stat s-combo"><img :src="fireIcon" alt="" /><b>{{ combo }}</b><span>连击</span></div>
+        <div class="g-stat s-miss"><img :src="missIcon" alt="" /><b>{{ missedApples }}</b><span>错过</span></div>
+        <div class="g-stat s-coin"><img :src="glodIcon" alt="" /><b>+{{ coinsEarned }}</b><span>金币</span></div>
+      </div>
+
+      <!-- Mode tip -->
+      <div v-if="currentLevelMode === 'interference'" class="g-mode interference">
+        <img :src="interferenceIcon" alt="" /> 避开干扰物，专注追踪
+      </div>
+      <div v-if="currentLevelMode === 'multi-target'" class="g-mode multi">
+        <img :src="multipleIcon" alt="" />
+        <span>追踪金色目标，避开绿色干扰</span>
+        <em>假苹果 {{ currentFakeApples }}/{{ maxFakeApples }}</em>
+      </div>
+
+      <!-- Controls -->
+      <div class="g-controls">
+        <button v-if="isPlaying || score > 0" class="btn g-ctrl pause" @click="togglePause">
+          <img v-if="isPlaying" class="btn-icon" :src="suspendIcon" alt="暂停" />
+          <span>{{ isPlaying ? '暂停' : '继续' }}</span>
+        </button>
+        <button v-if="isPlaying || score > 0" class="btn g-ctrl finish" @click="endGame">
+          <img class="btn-icon" :src="finishIcon" alt="结束" /><span>结束</span>
+        </button>
+        <div v-if="autoStart && !isPlaying && score === 0" class="g-autostart">游戏即将开始...</div>
+      </div>
+
+      <!-- Footer meta -->
+      <div class="g-foot">
+        <img class="g-foot-ghost" :src="ghostImg" alt="" />
+        <span class="g-foot-name">{{ currentOutfitName }}</span>
+        <span class="g-foot-sep"></span>
+        <span class="g-foot-rate">成功率 {{ successRate }}%</span>
+        <span class="g-foot-sep"></span>
+        <span class="g-foot-lv">Lv {{ gameLevel }}</span>
+      </div>
+     </div>
+    </main>
+
+    <!-- ===== End-game modal ===== -->
+    <transition name="modal">
+      <div v-if="showEndModal" class="end-overlay" @click.self="closeEndModal">
+        <div class="end-card" :class="{ 'end-card--win': endModalData.isComplete }">
+          <img class="end-icon" :src="endModalData.isComplete ? congratulationIcon : (endModalData.timeUp ? timeIcon : targetIcon)" alt="" />
+          <h2 class="end-title">{{ endModalData.title }}</h2>
+          <p v-if="endModalData.message" class="end-message">{{ endModalData.message }}</p>
+
+          <div class="end-stats">
+            <div class="end-stat">
+              <img :src="trophyIcon" alt="" />
+              <b>{{ endModalData.score }}</b>
+              <span>得分</span>
+            </div>
+            <div class="end-stat">
+              <img :src="glodIcon" alt="" />
+              <b>+{{ endModalData.coins }}</b>
+              <span>金币</span>
+            </div>
+            <div class="end-stat">
+              <img :src="fireIcon" alt="" />
+              <b>{{ endModalData.combo }}</b>
+              <span>最高连击</span>
+            </div>
+            <div class="end-stat">
+              <img :src="accuracyIcon" alt="" />
+              <b>{{ endModalData.accuracy }}%</b>
+              <span>成功率</span>
+            </div>
           </div>
-          <div v-else-if="autoStart" class="auto-start-tip">游戏即将开始...</div>
-        </div>
 
-        <div class="game-info">
-          <div class="info-row"><span class="info-label">装扮:</span><span class="info-value">{{ currentOutfitName }}</span></div>
-          <div class="info-row"><span class="info-label">成功率:</span><span class="info-value">{{ successRate }}%</span></div>
-          <div class="info-row"><span class="info-label">等级:</span><span class="info-value">{{ gameLevel }}</span></div>
-
-          <div v-if="currentLevelMode === 'interference'" class="mode-tip interference">✨ 避开干扰物，专注追踪苹果！</div>
-          <div v-if="currentLevelMode === 'multi-target'" class="mode-tip multi-target">
-            🎯 追踪金色目标，避开绿色干扰！<br />
-            假苹果数量: {{ currentFakeApples }}/{{ maxFakeApples }}<br />
-            <small>调试: 真苹果数量: {{ apples.filter(a => a.isTarget).length }}</small>
+          <div class="end-actions">
+            <button class="btn end-btn end-btn--back" @click="closeEndModal">返回</button>
+            <button class="btn btn-green end-btn end-btn--retry" @click="retryGame">
+              <img class="btn-icon" :src="startIcon" alt="重来" /> 再来一局
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -90,9 +154,19 @@ import ghostPekingImg from '../assets/ghost_peking.png'
 import ghostDizzyImg from '../assets/ghost_dizzy.png'
 
 import backIcon from '../assets/back.png'
-import suspendIcon from '../assets/suspend.png'
-import finishIcon from '../assets/finish.png'
+import startIcon from '../assets/start.svg'
+import timeIcon from '../assets/time.svg'
+import suspendIcon from '../assets/suspend.svg'
+import finishIcon from '../assets/finish.svg'
 import glodIcon from '../assets/glod.png'
+import trophyIcon from '../assets/trophy.svg'
+import fireIcon from '../assets/fire.svg'
+import interferenceIcon from '../assets/interference.svg'
+import multipleIcon from '../assets/multiple.svg'
+import missIcon from '../assets/miss.svg'
+import congratulationIcon from '../assets/congratulation.svg'
+import targetIcon from '../assets/target.svg'
+import accuracyIcon from '../assets/accuracy.svg'
 
 import appleImg from '../assets/apple.png'
 import bananaImg from '../assets/banana.png'
@@ -174,6 +248,10 @@ const maxFakeApples = ref(0)
 const currentFakeApples = ref(0)
 const fakeAppleSpawnTimer = ref(null)
 
+// 结束弹窗
+const showEndModal = ref(false)
+const endModalData = ref({ title: '', score: 0, coins: 0, level: 1, combo: 0, accuracy: 0, message: '', isComplete: false, timeUp: false })
+
 // 画布
 const gameCanvas = ref(null)
 
@@ -199,6 +277,14 @@ let ctx = null
 
 // Endless 判定（包括特殊无尽）
 const isEndless = computed(() => gameMode.value.startsWith('endless'))
+
+const lessonProgress = computed(() => {
+  if (isEndless.value) {
+    return Math.min((gameLevel.value - 1) / 7, 1) * 100
+  }
+  if (!timeLimit.value) return 0
+  return Math.min((gameTime.value / timeLimit.value) * 100, 100)
+})
 
 const getCurrentFruitName = () => {
   const fruitId = gameStore.currentFruit
@@ -231,7 +317,13 @@ const loadGameData = (levelId) => {
 }
 
 const initCanvas = () => {
-  ctx = gameCanvas.value.getContext('2d')
+  const canvasEl = gameCanvas.value
+  if (!canvasEl) return
+  const dpr = window.devicePixelRatio || 1
+  canvasEl.width = 400 * dpr
+  canvasEl.height = 400 * dpr
+  ctx = canvasEl.getContext('2d')
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   draw()
 }
 
@@ -361,7 +453,7 @@ const getPositionOnTrack = (angle) => {
 
 const drawTrack = () => {
   const shape = currentLevel.value.shape
-  ctx.strokeStyle = '#3b82f6'
+  ctx.strokeStyle = '#1cb0f6'
   ctx.lineWidth = 4
   ctx.beginPath()
   switch (shape) {
@@ -421,15 +513,15 @@ const drawJoystick = () => {
   if (!joystick.isActive) return
   ctx.beginPath()
   ctx.arc(joystick.centerX, joystick.centerY, joystickRadius, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(59, 130, 246, 0.3)'
+  ctx.fillStyle = 'rgba(28, 176, 246, 0.3)'
   ctx.fill()
-  ctx.strokeStyle = '#3b82f6'
+  ctx.strokeStyle = '#1cb0f6'
   ctx.lineWidth = 2
   ctx.stroke()
 
   ctx.beginPath()
   ctx.arc(joystick.knobX, joystick.knobY, knobRadius, 0, Math.PI * 2)
-  ctx.fillStyle = '#3b82f6'
+  ctx.fillStyle = '#1cb0f6'
   ctx.fill()
 }
 
@@ -1184,8 +1276,18 @@ const endGame = (timeUp = false) => {
     gameStore.saveGameData()
   }
 
-  alert(modalTitle + '\n' + modalContent)
-  router.back()
+  endModalData.value = {
+    title: modalTitle,
+    score: score.value,
+    coins: coinsEarned.value,
+    level: gameLevel.value,
+    combo: combo.value,
+    accuracy: successRate.value,
+    message: modalContent.split('\n').slice(1).join('\n'),
+    isComplete: modalTitle === '关卡完成！',
+    timeUp: timeUp,
+  }
+  showEndModal.value = true
 }
 
 const cleanup = () => {
@@ -1194,6 +1296,8 @@ const cleanup = () => {
   if (dizzyTimer.value) { clearTimeout(dizzyTimer.value); dizzyTimer.value = null }
   if (interferenceSpawnTimer.value) { clearTimeout(interferenceSpawnTimer.value); interferenceSpawnTimer.value = null }
   if (fakeAppleSpawnTimer.value) { clearTimeout(fakeAppleSpawnTimer.value); fakeAppleSpawnTimer.value = null }
+  window.removeEventListener('mouseup', handleMouseUp)
+  window.removeEventListener('mousemove', handleMouseMove)
 }
 
 const goBack = () => {
@@ -1206,6 +1310,17 @@ const goBack = () => {
   }
   cleanup()
   router.back()
+}
+
+const closeEndModal = () => {
+  showEndModal.value = false
+  cleanup()
+  router.back()
+}
+
+const retryGame = () => {
+  showEndModal.value = false
+  startGame()
 }
 
 const getShapeDescription = (shape) => {
@@ -1266,6 +1381,9 @@ onMounted(() => {
 
   initCanvas()
 
+  window.addEventListener('mouseup', handleMouseUp)
+  window.addEventListener('mousemove', handleMouseMove)
+
   if (!isEndless.value) {
     const initialTimeLimit = currentLevel.value.timeLimit || 60
     timeLimit.value = initialTimeLimit
@@ -1282,66 +1400,233 @@ onUnmounted(() => { cleanup() })
 </script>
 
 <style scoped>
+.game-shell {
+  display: flex; flex-direction: column; align-items: center;
+  min-height: 100vh; background: #fff;
+}
 
-.game-container { display: flex; flex-direction: column; align-items: center; justify-content:flex-start;padding: 0 20px 100px; background: linear-gradient(135deg, #f3e8ff 0%, #fce7f3 100%); box-sizing: border-box; width: 100%; flex: 1; max-width: 1200px; margin: 0 auto; }
-.game-stats { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
-.stat-group { display: flex; gap: 12px; flex-wrap: wrap; }
-.stat-item { flex-shrink: 0; }
-.coins-earned { display: inline-flex; align-items: center; gap: 6px; }
+/* ===== Slim top bar ===== */
+.g-top {
+  position: sticky; top: 0; z-index: 30;
+  width: 100%; background: #fff;
+  border-bottom: 2px solid #e5e5e5;
+}
+.g-top-inner {
+  width: 100%; max-width: 960px; margin: 0 auto;
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px 10px;
+}
+.g-back {
+  flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%;
+  border: 2px solid #e5e5e5; border-bottom: 4px solid #e5e5e5;
+  background: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: filter 0.1s, transform 0.08s, border-bottom-width 0.08s;
+}
+.g-back:hover { filter: brightness(1.04); }
+.g-back:active { border-bottom-width: 2px; transform: translateY(2px); }
+.g-back-icon { width: 22px; height: 22px; object-fit: contain; }
 
-.game-area { display: flex; gap: 32px; align-items: flex-start; width: 100%; max-width: 1000px; }
-.canvas-container { position: relative; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
-.game-canvas { width: 400px; height: 400px; border: 3px solid #c7d2fe; border-radius: 12px; box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2); background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); cursor: crosshair; }
+.g-progress {
+  flex: 1; position: relative; height: 18px; border-radius: 999px;
+  background: #e5e5e5; overflow: hidden;
+}
+.g-progress-fill {
+  position: absolute; inset: 0 auto 0 0; border-radius: 999px;
+  background: linear-gradient(90deg, #58cc02, #46a302);
+  transition: width 0.4s ease;
+}
+.g-progress-label {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; font-weight: 800; color: #fff; mix-blend-mode: difference;
+}
+.g-indicator {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 800; font-size: 15px; color: #3c3c3c;
+  background: #f7f7f7; border: 2px solid #e5e5e5; border-bottom: 4px solid #e5e5e5;
+  padding: 7px 14px; border-radius: 999px;
+  min-width: 70px; justify-content: center;
+}
+.g-ind-icon { width: 18px; height: 18px; object-fit: contain; }
+.g-ind-badge {
+  font-size: 13px; font-weight: 800; color: #1cb0f6;
+}
 
-.encouragement { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; font-weight: bold; color: #ef4444; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3); pointer-events: none; z-index: 10; background: rgba(255, 255, 255, 0.9); padding: 12px 20px; border-radius: 12px; border: 2px solid currentColor; }
-.encouragement.success { color: #10b981; }
-.encouragement.miss { color: #ef4444; font-size: 24px; }
+/* ===== Centered stage ===== */
+.g-stage {
+  width: 100%; max-width: 960px; margin: 0 auto;
+  display: flex; justify-content: center;
+  padding: 4px 20px 36px; box-sizing: border-box;
+}
+.g-stage-inner {
+  width: 100%; max-width: 460px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
 
-.dizzy-overlay { position: absolute; inset: 0; background: rgba(239, 68, 68, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 5; }
-.dizzy-text { font-size: 24px; font-weight: bold; color: #dc2626; background: rgba(255, 255, 255, 0.9); padding: 12px 20px; border-radius: 8px; animation: shake 0.5s infinite; }
+.g-level-tag {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: 'Fredoka','Nunito',sans-serif; font-weight: 700; font-size: 15px;
+  color: #3c3c3c;
+}
+.g-level-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #58cc02;
+  box-shadow: 0 0 0 3px rgba(88,204,2,0.2);
+}
+
+/* ===== Canvas hero ===== */
+.g-canvas-wrap {
+  position: relative; padding: 12px; border-radius: 26px;
+  background: #fff; border: 1px solid #ebebeb;
+  box-shadow: 0 2px 0 #eee, 0 10px 30px rgba(0,0,0,0.07);
+}
+.g-canvas {
+  display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 18px;
+  cursor: crosshair; touch-action: none;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e6f5ff 100%);
+  border: 2px solid #c8efa0;
+}
+
+.g-float {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 24px; font-weight: 800; pointer-events: none; z-index: 12;
+  background: rgba(255,255,255,0.97); padding: 12px 22px; border-radius: 16px;
+  border: 3px solid currentColor; text-align: center; white-space: nowrap;
+  animation: pop 0.3s ease;
+}
+@keyframes pop { from { transform: translate(-50%,-50%) scale(0.7); opacity: 0 } to { transform: translate(-50%,-50%) scale(1); opacity: 1 } }
+.g-float.success { color: #58cc02; }
+.g-float.miss { color: #ff4b4b; font-size: 20px; }
+
+/* Pre-game overlay */
+.g-overlay {
+  position: absolute; inset: 12px; border-radius: 18px; z-index: 11;
+  background: rgba(240,249,255,0.82); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+}
+.g-overlay-card { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.g-overlay-ghost { width: 64px; height: 64px; object-fit: contain; animation: bob 1.6s ease-in-out infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+.g-overlay-title { font-family: 'Fredoka','Nunito',sans-serif; font-size: 20px; font-weight: 700; color: #3c3c3c; }
+.g-overlay-sub { font-size: 13px; font-weight: 700; color: #777; margin-bottom: 8px; }
+.g-start { padding: 12px 32px; font-size: 17px; }
+
+.g-dizzy {
+  position: absolute; inset: 12px; border-radius: 18px; z-index: 10;
+  background: rgba(255,75,75,0.16);
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.g-dizzy-badge {
+  font-size: 20px; font-weight: 800; color: #ff4b4b;
+  background: rgba(255,255,255,0.97); padding: 11px 20px; border-radius: 14px;
+  border: 3px solid #ff4b4b; animation: shake 0.5s infinite;
+}
 @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
 
-.info-panel { flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 20px; }
-.game-controls { display: flex; flex-direction: column; gap: 12px; }
-.control-group { display: flex; gap: 12px; }
-.control-btn { flex: 1; padding: 12px 16px; font-size: 16px; min-height: 48px; }
-
-.game-info { background: rgba(139, 92, 246, 0.1); padding: 20px; border-radius: 12px; border: 2px solid rgba(139, 92, 246, 0.2); }
-.info-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 16px; }
-.info-label { color: #7c3aed; font-weight: 600; }
-.info-value { color: #374151; font-weight: 500; }
-
-.mode-tip { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 600; text-align: center; }
-.mode-tip.interference { background: rgba(252, 211, 77, 0.2); color: #d97706; border: 2px solid #fbbf24; }
-.mode-tip.multi-target { background: rgba(34, 197, 94, 0.2); color: #059669; border: 2px solid #10b981; }
-
-.badge-miss { background: #fecaca !important; color: #dc2626 !important; }
-.auto-start-tip { font-size: 18px; color: #8b5cf6; text-align: center; padding: 20px; background: rgba(139, 92, 246, 0.1); border-radius: 12px; border: 2px solid rgba(139, 92, 246, 0.2); font-weight: 600; }
-
-.btn-icon { width: 18px; height: 18px; object-fit: contain; margin-right: 6px; vertical-align: -3px; }
-.coin-icon { width: 18px; height: 18px; object-fit: contain; margin-right: 6px; vertical-align: -3px; }
-
-.custom-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; 
-            border-bottom: 2px solid #5e35b1; }
-.header-left, .header-center, .header-right { flex: 1; display: flex; align-items: center; }
-.header-title {
-  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
-    "Microsoft YaHei", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
-  font-weight: 800; font-size: clamp(20px, 5vw, 30px); line-height: 1.2; letter-spacing: 0.06em; color: #111827;
-  white-space: nowrap; position: relative; text-align: center;
+/* ===== Stat strip ===== */
+.g-stats { display: flex; gap: 10px; width: 100%; }
+.g-stat {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  padding: 10px 12px; border-radius: 14px; background: #f7f7f7;
 }
-.header-title::after { content: ""; display: block; width: 44px; height: 3px; border-radius: 999px; margin: 6px auto 0; background: linear-gradient(90deg, #8b5cf6 0%, #f59e0b 100%); opacity: 0.85; }
+.g-stat img { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+.g-stat b { font-size: 17px; font-weight: 800; color: #3c3c3c; line-height: 1; }
+.g-stat span { font-size: 11px; font-weight: 700; color: #999; margin-left: auto; }
+.g-stat.s-score { background: #e9f7d6; }
+.g-stat.s-score b { color: #58a700; }
+.g-stat.s-combo { background: #fff3d6; }
+.g-stat.s-combo b { color: #b07a00; }
+.g-stat.s-miss { background: #ffe0e0; }
+.g-stat.s-miss b { color: #ea2b2b; }
+.g-stat.s-coin { background: #fff3d6; }
+.g-stat.s-coin b { color: #b07a00; }
 
-@media (max-width: 768px) {
-  .game-area { flex-direction: column; align-items: center; gap: 20px; }
-  .game-canvas { width: 350px; height: 350px; }
-  .info-panel { width: 100%; max-width: 350px; }
-  .control-group { flex-direction: column; }
-  .encouragement { font-size: 24px; }
+/* ===== Mode tip ===== */
+.g-mode {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  padding: 11px 16px; border-radius: 14px; font-size: 13px; font-weight: 800; text-align: center;
 }
+.g-mode img { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
+.g-mode.interference { background: #fff8d6; color: #6b5400; border: 1px solid #ffe07a; }
+.g-mode.multi { background: #e9f7d6; color: #58a700; border: 1px solid #b5e879; }
+.g-mode em { margin-left: auto; font-style: normal; font-size: 12px; opacity: 0.75; }
+
+/* ===== Controls ===== */
+.g-controls { display: flex; gap: 12px; width: 100%; }
+.g-ctrl { flex: 1; padding: 14px; font-size: 16px; min-height: 50px; margin: 0; }
+.g-ctrl.pause { background: #fff; border: 2px solid #e5e5e5; border-bottom: 4px solid #e5e5e5; color: #3c3c3c; }
+.g-ctrl.pause:hover { background: #f7f7f7; }
+.g-ctrl.finish { background: #ff4b4b; border-bottom-color: #ea2b2b; color: #fff; }
+.g-ctrl.finish:hover { filter: brightness(1.05); }
+.g-autostart {
+  flex: 1; text-align: center; font-size: 16px; font-weight: 800; color: #58a700;
+  padding: 16px; background: #e9f7d6; border-radius: 14px; border: 1px solid #b5e879;
+}
+.btn-icon { width: 18px; height: 18px; object-fit: contain; margin-right: 6px; }
+
+/* ===== Footer meta ===== */
+.g-foot {
+  display: flex; align-items: center; gap: 10px; margin-top: 4px;
+  font-size: 13px; font-weight: 700; color: #999;
+}
+.g-foot-ghost { width: 24px; height: 24px; object-fit: contain; }
+.g-foot-name { color: #3c3c3c; font-weight: 800; }
+.g-foot-sep { width: 4px; height: 4px; border-radius: 50%; background: #ddd; }
+.g-foot-rate { color: #58a700; }
+.g-foot-lv { color: #1cb0f6; }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
 @media (max-width: 480px) {
-  .game-canvas { width: 300px; height: 300px; }
-  .info-panel { max-width: 300px; }
-  .encouragement { font-size: 20px; padding: 8px 16px; }
+  .g-stat { padding: 8px 10px; }
+  .g-stat b { font-size: 15px; }
+  .g-stat span { display: none; }
+  .g-float { font-size: 18px; padding: 10px 16px; }
 }
+
+/* ===== End-game modal ===== */
+.end-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.end-card {
+  width: 100%; max-width: 380px;
+  background: #fff; border-radius: 24px;
+  border: 2px solid #e5e5e5; border-bottom: 6px solid #e5e5e5;
+  padding: 28px 24px 24px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.end-card--win { border-color: #58cc02; border-bottom-color: #58a700; }
+.end-icon { width: 56px; height: 56px; object-fit: contain; margin-bottom: 4px; }
+.end-title {
+  font-family: 'Fredoka','Nunito',sans-serif; font-size: 24px; font-weight: 700;
+  color: #3c3c3c; margin: 0;
+}
+.end-card--win .end-title { color: #58a700; }
+.end-message {
+  font-size: 13px; font-weight: 700; color: #777; line-height: 1.6;
+  margin: 4px 0 12px; white-space: pre-line;
+}
+.end-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  width: 100%; margin-bottom: 20px;
+}
+.end-stat {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 12px 4px; border-radius: 14px; background: #f7f7f7;
+}
+.end-stat img { width: 22px; height: 22px; object-fit: contain; }
+.end-stat b { font-size: 18px; font-weight: 800; color: #3c3c3c; line-height: 1.1; }
+.end-stat span { font-size: 11px; font-weight: 700; color: #999; }
+.end-actions { display: flex; gap: 12px; width: 100%; }
+.end-btn { flex: 1; padding: 14px; font-size: 16px; min-height: 50px; margin: 0; }
+.end-btn--back { background: #fff; border: 2px solid #e5e5e5; border-bottom: 4px solid #e5e5e5; color: #777; }
+.end-btn--back:hover { background: #f7f7f7; }
+
+.modal-enter-active, .modal-leave-active { transition: opacity 0.25s ease; }
+.modal-enter-active .end-card, .modal-leave-active .end-card { transition: transform 0.25s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-from .end-card, .modal-leave-to .end-card { transform: scale(0.85); }
 </style>
